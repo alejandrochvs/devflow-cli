@@ -403,7 +403,7 @@ devflow checks for newer versions on npm once every 24 hours and displays a non-
 
 ## Requirements
 
-- Node.js >= 18
+- Node.js >= 20.12
 - Git
 - [GitHub CLI (gh)](https://cli.github.com/) — required for the `pr` command
 

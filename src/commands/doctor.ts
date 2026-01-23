@@ -34,9 +34,9 @@ export async function doctorCommand(): Promise<void> {
   const nodeVersion = checkCommand("node --version");
   if (nodeVersion) {
     const major = parseInt(nodeVersion.replace("v", "").split(".")[0], 10);
-    checks.push(major >= 18
+    checks.push(major >= 20
       ? { name: "node", status: "ok", detail: nodeVersion }
-      : { name: "node", status: "warning", detail: `${nodeVersion} (>= 18 recommended)` }
+      : { name: "node", status: "warning", detail: `${nodeVersion} (>= 20 recommended)` }
     );
   } else {
     checks.push({ name: "node", status: "error", detail: "Not installed" });
