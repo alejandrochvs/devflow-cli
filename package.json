@@ -1,0 +1,28 @@
+{
+  "name": "devflow-cli",
+  "version": "0.1.0",
+  "description": "Interactive CLI for branch creation, conventional commits, and PR management",
+  "type": "module",
+  "bin": {
+    "devflow": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["cli", "git", "commits", "conventional-commits", "branch", "pull-request"],
+  "license": "MIT",
+  "files": ["dist"],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.2.0",
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "~5.9.2"
+  }
+}
