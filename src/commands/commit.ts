@@ -1,10 +1,10 @@
 import { select, search, confirm, input, checkbox } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { loadConfig, Scope } from "../config.js";
-import { inferTicket, inferScope } from "../git.js";
-import { bold, cyan, dim, green } from "../colors.js";
+import { inferTicket, inferScope, getBranch, isProtectedBranch } from "../git.js";
+import { bold, cyan, dim, green, yellow } from "../colors.js";
 
-function inferScopeFromPaths(stagedFiles: string[], scopes: Scope[]): string | undefined {
+export function inferScopeFromPaths(stagedFiles: string[], scopes: Scope[]): string | undefined {
   const scopesWithPaths = scopes.filter((s) => s.paths && s.paths.length > 0);
   if (scopesWithPaths.length === 0) return undefined;
 
@@ -27,16 +27,18 @@ function inferScopeFromPaths(stagedFiles: string[], scopes: Scope[]): string | u
   return entries[0][0];
 }
 
-function fileMatchesPattern(file: string, pattern: string): boolean {
-  // Simple glob: support ** and * patterns
-  const regex = pattern
-    .replace(/\*\*/g, "{{GLOBSTAR}}")
+export function fileMatchesPattern(file: string, pattern: string): boolean {
+  let regex = pattern
+    .replace(/\*\*\//g, "\u0000GLOBSTAR_SLASH\u0000")
+    .replace(/\*\*/g, "\u0000GLOBSTAR\u0000")
+    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
     .replace(/\*/g, "[^/]*")
-    .replace(/\{\{GLOBSTAR\}\}/g, ".*");
-  return new RegExp(`^${regex}`).test(file);
+    .replace(/\u0000GLOBSTAR_SLASH\u0000/g, "(.+/)?")
+    .replace(/\u0000GLOBSTAR\u0000/g, ".*");
+  return new RegExp(`^${regex}$`).test(file);
 }
 
-function formatCommitMessage(
+export function formatCommitMessage(
   format: string,
   vars: { type: string; ticket: string; breaking: string; scope: string; message: string }
 ): string {
@@ -57,6 +59,20 @@ function formatCommitMessage(
 export async function commitCommand(options: { dryRun?: boolean } = {}): Promise<void> {
   try {
     const config = loadConfig();
+
+    // Branch protection
+    if (isProtectedBranch()) {
+      const branch = getBranch();
+      console.log(yellow(`⚠ You are on ${bold(branch)}. Committing directly to protected branches is not recommended.`));
+      const proceed = await confirm({
+        message: `Continue committing to ${branch}?`,
+        default: false,
+      });
+      if (!proceed) {
+        console.log("Use: devflow branch");
+        process.exit(0);
+      }
+    }
 
     // Check for staged files
     const staged = execSync("git diff --cached --name-only", { encoding: "utf-8" }).trim();

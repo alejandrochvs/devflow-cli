@@ -1,6 +1,7 @@
 import { confirm, checkbox } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { bold, dim, green, red, yellow, gray } from "../colors.js";
+import { deleteTestPlan } from "../test-plan.js";
 
 function getMergedBranches(): string[] {
   try {
@@ -87,6 +88,7 @@ export async function cleanupCommand(options: { dryRun?: boolean } = {}): Promis
       } else {
         try {
           execSync(`git branch -d ${branch}`, { stdio: "ignore" });
+          deleteTestPlan(branch);
           console.log(`${green("✓")} Deleted ${branch}`);
         } catch {
           try {
@@ -97,6 +99,7 @@ export async function cleanupCommand(options: { dryRun?: boolean } = {}): Promis
             });
             if (force) {
               execSync(`git branch -D ${branch}`, { stdio: "ignore" });
+              deleteTestPlan(branch);
               console.log(`${yellow("✓")} Force deleted ${branch}`);
             } else {
               console.log(`${dim("  Skipped")} ${branch}`);

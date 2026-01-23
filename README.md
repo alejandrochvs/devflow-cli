@@ -47,10 +47,10 @@ Interactive setup wizard that configures your entire project. Walks you through:
 3. **PR checklist** — customize or use defaults
 4. **package.json scripts** — auto-adds `commit`, `branch`, `pr` scripts
 5. **Commitlint** — creates config with the devflow parser preset, installs deps
-6. **Husky** — installs, initializes, creates `commit-msg` hook
+6. **Husky** — installs, initializes, creates `commit-msg` hook + optional `pre-push` hook (lint + typecheck)
 7. **CI workflow** — optionally generates `.github/workflows/ci.yml` (lint, typecheck, test)
 
-### `devflow branch`
+### `devflow branch` (alias: `b`)
 
 Interactive branch creation with consistent naming.
 
@@ -72,9 +72,11 @@ fix/PROJ-45_correct-calculation-overflow
 chore/UNTRACKED_update-dependencies
 ```
 
-### `devflow commit`
+### `devflow commit` (alias: `c`)
 
 Interactive conventional commit with file staging, scope selection, and ticket inference.
+
+**Branch protection:** If you're on `main`, `master`, `develop`, or `production`, devflow warns you and asks for confirmation before proceeding.
 
 **Flow:**
 1. If no files are staged, select files to stage (checkbox selection)
@@ -101,7 +103,7 @@ refactor[ENV-200]!(api): restructure endpoints
 
 The `!` after the ticket indicates a breaking change.
 
-### `devflow pr`
+### `devflow pr` (alias: `p`)
 
 Create or update a pull request with an auto-filled template.
 
@@ -131,7 +133,50 @@ Create or update a pull request with an auto-filled template.
 - Test Plan
 - Checklist (customizable via config)
 
-### `devflow status`
+### `devflow test-plan` (alias: `tp`)
+
+View or edit the test plan for the current branch. Test plan steps are stored locally and automatically included in the PR body.
+
+**Flow:**
+- If a test plan exists: view steps and choose to add, replace, or clear
+- If no test plan: prompted to add steps
+
+Steps are also optionally collected during `devflow branch` creation.
+
+When you run `devflow pr`, stored test plan steps auto-populate the "Test Plan" section as checkboxes:
+
+```markdown
+## Test Plan
+
+- [ ] Verify login flow with valid credentials
+- [ ] Test error handling for expired tokens
+- [ ] Confirm logout clears session data
+```
+
+### `devflow undo` (alias: `u`)
+
+Undo the last commit, keeping changes staged. Shows a preview of the commit that will be undone before confirming.
+
+### `devflow fixup` (alias: `f`)
+
+Create a fixup commit targeting a previous commit on the branch:
+
+1. Shows recent commits on the branch
+2. Select which commit to fix
+3. Stage files (if needed)
+4. Optionally auto-squash via interactive rebase
+
+### `devflow merge` (alias: `m`)
+
+Merge the current branch's PR via GitHub CLI:
+
+1. Detects the PR for the current branch
+2. Select merge strategy (squash, merge, rebase)
+3. Optionally delete the branch and switch back to main
+
+Requires `gh` CLI to be installed and authenticated.
+
+### `devflow status` (alias: `s`)
 
 At-a-glance view of your current branch context:
 - Branch name, type, ticket, and description
@@ -140,7 +185,7 @@ At-a-glance view of your current branch context:
 - Working tree status (staged/modified/untracked)
 - PR link and state (if exists)
 
-### `devflow amend`
+### `devflow amend` (alias: `a`)
 
 Re-edit the last commit message using the same guided prompts. Pre-fills all fields from the existing message. Also includes any staged changes in the amend.
 
@@ -179,6 +224,20 @@ eval "$(devflow completions --shell zsh)"
 eval "$(devflow completions --shell bash)"
 ```
 
+## Command Aliases
+
+| Command | Alias |
+|---------|-------|
+| `devflow branch` | `devflow b` |
+| `devflow commit` | `devflow c` |
+| `devflow pr` | `devflow p` |
+| `devflow amend` | `devflow a` |
+| `devflow undo` | `devflow u` |
+| `devflow fixup` | `devflow f` |
+| `devflow merge` | `devflow m` |
+| `devflow status` | `devflow s` |
+| `devflow test-plan` | `devflow tp` |
+
 ## Global Options
 
 Commands that modify git state support `--dry-run` to preview without executing:
@@ -188,6 +247,9 @@ devflow commit --dry-run
 devflow branch --dry-run
 devflow pr --dry-run
 devflow amend --dry-run
+devflow undo --dry-run
+devflow fixup --dry-run
+devflow merge --dry-run
 devflow cleanup --dry-run
 devflow changelog --dry-run
 ```
@@ -237,6 +299,35 @@ Create a `.devflow.json` in your project root (or run `devflow init`):
 | `prTemplate.sections` | PR body sections to include | All sections |
 | `prTemplate.screenshotsTable` | Include before/after screenshots table | `true` |
 | `prReviewers` | Default PR reviewers (GitHub usernames) | — |
+
+### Shareable Configs (`extends`)
+
+Share a base configuration across projects using the `extends` field:
+
+```json
+{
+  "extends": "@myorg/devflow-config",
+  "ticketBaseUrl": "https://jira.myorg.com/browse"
+}
+```
+
+The `extends` value can be:
+- An npm package name (resolved from `node_modules`)
+- A relative file path (e.g., `"./config/devflow-base.json"`)
+
+The extended config is merged with local overrides — local fields take precedence.
+
+### Monorepo Awareness
+
+devflow automatically detects monorepo workspace setups and uses workspace packages as commit scopes when no scopes are configured. Supported:
+
+- **npm/yarn workspaces** — `workspaces` field in `package.json`
+- **pnpm workspaces** — `pnpm-workspace.yaml`
+- **Lerna** — `lerna.json`
+- **Nx** — `nx.json` with `project.json` files
+- **Turborepo** — `turbo.json` (uses package.json workspaces)
+
+Each workspace package becomes a scope with its directory as the `paths` pattern for auto-inference. For example, in a monorepo with `packages/auth` and `packages/ui`, staging a file in `packages/auth/src/login.ts` auto-suggests the `auth` scope.
 
 ### Scopes
 
@@ -292,6 +383,22 @@ npx --no -- commitlint --edit $1 || {
   echo ""
   exit 1
 }
+```
+
+The `devflow init` wizard can also set up a **pre-push** hook that runs lint and type checking before push:
+
+```bash
+# .husky/pre-push
+npm run lint
+npx tsc --noEmit
+```
+
+## Update Notifications
+
+devflow checks for newer versions on npm once every 24 hours and displays a non-blocking notification if an update is available:
+
+```
+─ Update available: 0.2.0 → 0.3.0 (npm update @alejandrochaves/devflow-cli) ─
 ```
 
 ## Requirements

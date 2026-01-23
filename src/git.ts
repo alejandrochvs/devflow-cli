@@ -1,5 +1,7 @@
 import { execSync } from "child_process";
 
+const PROTECTED_BRANCHES = ["main", "master", "develop", "production"];
+
 export function getBranch(): string {
   return execSync("git branch --show-current", { encoding: "utf-8" }).trim();
 }
@@ -100,4 +102,9 @@ export function checkGhInstalled(): void {
     console.error("Then authenticate: gh auth login");
     process.exit(1);
   }
+}
+
+export function isProtectedBranch(branch?: string): boolean {
+  const current = branch || getBranch();
+  return PROTECTED_BRANCHES.includes(current);
 }

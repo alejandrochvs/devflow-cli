@@ -1,2 +1,8 @@
 node_modules/
 dist/
+coverage/
+.devflow/test-plans.json
+*.log
+.DS_Store
+.env
+.env.*

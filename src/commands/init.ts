@@ -235,6 +235,20 @@ export async function initCommand(): Promise<void> {
       writeFileSync(resolve(huskyDir, "commit-msg"), commitMsgHook);
       console.log("✓ Created .husky/commit-msg hook");
 
+      // Pre-push hook
+      const addPrePush = await confirm({
+        message: "Add pre-push hook (lint + typecheck)?",
+        default: true,
+      });
+
+      if (addPrePush) {
+        const prePushHook = `npm run lint
+npx tsc --noEmit
+`;
+        writeFileSync(resolve(huskyDir, "pre-push"), prePushHook);
+        console.log("✓ Created .husky/pre-push hook");
+      }
+
       // Add prepare script
       const updatedPkg = readPackageJson(cwd);
       if (updatedPkg) {

@@ -10,6 +10,7 @@ import {
   getDefaultBase,
   checkGhInstalled,
 } from "../git.js";
+import { getTestPlan } from "../test-plan.js";
 
 const TYPE_LABELS: Record<string, string> = {
   feat: "Feature (new functionality)",
@@ -82,16 +83,23 @@ function buildTypeCheckboxes(type: string | undefined): string {
     .join("\n");
 }
 
+function buildTestPlanSection(steps: string[]): string {
+  if (steps.length > 0) {
+    return `## Test Plan\n\n${steps.map((s) => `- [ ] ${s}`).join("\n")}`;
+  }
+  return `## Test Plan\n\n- [ ] <!-- Add testing steps -->`;
+}
+
 function buildPrBody(
   config: DevflowConfig,
-  opts: { summary: string; ticket: string; type: string | undefined; commitList: string }
+  opts: { summary: string; ticket: string; type: string | undefined; commitList: string; testPlanSteps: string[] }
 ): string {
   const sections: Record<string, string> = {
     summary: `## Summary\n\n${opts.summary || "<!-- Brief description of what this PR does and why -->"}`,
     ticket: `## Ticket\n\n${formatTicket(opts.ticket, config.ticketBaseUrl)}`,
     type: `## Type of Change\n\n${buildTypeCheckboxes(opts.type)}`,
     screenshots: `## Screenshots\n\n<!-- Add before/after screenshots for UI changes, or remove this section if not applicable -->\n\n| Before | After |\n|--------|-------|\n|        |       |`,
-    testPlan: `## Test Plan\n\n- [ ]`,
+    testPlan: buildTestPlanSection(opts.testPlanSteps),
     checklist: `## Checklist\n\n${buildChecklist(config.checklist)}`,
   };
 
@@ -149,7 +157,8 @@ export async function prCommand(options: { dryRun?: boolean } = {}): Promise<voi
       .filter(Boolean)
       .join("\n\n");
 
-    const body = buildPrBody(config, { summary, ticket, type, commitList });
+    const testPlanSteps = getTestPlan(branch);
+    const body = buildPrBody(config, { summary, ticket, type, commitList, testPlanSteps });
 
     // Build preview labels
     const previewLabels: string[] = [];

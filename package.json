@@ -1,6 +1,6 @@
 {
   "name": "@alejandrochaves/devflow-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Interactive CLI for branch creation, conventional commits, and PR management",
   "type": "module",
   "bin": {
@@ -9,6 +9,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "publish:public": "npm publish --access=public",
     "prepublishOnly": "npm run build"
   },
@@ -21,6 +23,14 @@
     "pull-request"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alejandrochvs/devflow-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/alejandrochvs/devflow-cli/issues"
+  },
+  "homepage": "https://github.com/alejandrochvs/devflow-cli#readme",
   "files": [
     "dist"
   ],
@@ -33,6 +43,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.18"
   }
 }
