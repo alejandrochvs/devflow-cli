@@ -1,1 +1,1 @@
-{"version":3,"file":"branch.d.ts","sourceRoot":"","sources":["../../src/commands/branch.ts"],"names":[],"mappings":"AAIA,wBAAsB,aAAa,IAAI,OAAO,CAAC,IAAI,CAAC,CAiDnD"}
+{"version":3,"file":"branch.d.ts","sourceRoot":"","sources":["../../src/commands/branch.ts"],"names":[],"mappings":"AAKA,wBAAsB,aAAa,CAAC,OAAO,GAAE;IAAE,MAAM,CAAC,EAAE,OAAO,CAAA;CAAO,GAAG,OAAO,CAAC,IAAI,CAAC,CAsDrF"}

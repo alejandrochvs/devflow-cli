@@ -40,7 +40,15 @@ Or add scripts to your `package.json`:
 
 ### `devflow init`
 
-Generates a `.devflow.json` config file in your project root. Prompts for your ticket base URL and creates a starter config with default scopes and checklist items.
+Interactive setup wizard that configures your entire project. Walks you through:
+
+1. **Ticket base URL** — for linking tickets in PRs
+2. **Scopes** — add project-specific scopes one by one (or use defaults)
+3. **PR checklist** — customize or use defaults
+4. **package.json scripts** — auto-adds `commit`, `branch`, `pr` scripts
+5. **Commitlint** — creates config with the devflow parser preset, installs deps
+6. **Husky** — installs, initializes, creates `commit-msg` hook
+7. **CI workflow** — optionally generates `.github/workflows/ci.yml` (lint, typecheck, test)
 
 ### `devflow branch`
 
@@ -123,6 +131,67 @@ Create or update a pull request with an auto-filled template.
 - Test Plan
 - Checklist (customizable via config)
 
+### `devflow status`
+
+At-a-glance view of your current branch context:
+- Branch name, type, ticket, and description
+- Inferred base branch
+- Commit count with recent messages
+- Working tree status (staged/modified/untracked)
+- PR link and state (if exists)
+
+### `devflow amend`
+
+Re-edit the last commit message using the same guided prompts. Pre-fills all fields from the existing message. Also includes any staged changes in the amend.
+
+### `devflow cleanup`
+
+Finds and deletes local branches that are:
+- Merged into `main`
+- Tracking a remote branch that no longer exists
+
+Fetches remote state first, shows checkbox selection, and asks for confirmation before force-deleting unmerged branches.
+
+### `devflow changelog`
+
+Generates a changelog entry from conventional commits since the last git tag:
+- Groups by type (Features, Bug Fixes, etc.)
+- Highlights breaking changes
+- Auto-suggests the next version (semver bump based on commit types)
+- Prepends to `CHANGELOG.md`
+
+### `devflow doctor`
+
+Checks that all devflow dependencies are properly configured:
+- git, node (>= 18), gh CLI + auth
+- `.devflow.json`, commitlint config, husky hooks
+- `package.json` scripts
+
+### `devflow completions`
+
+Outputs shell completion scripts for tab-completion of commands:
+
+```bash
+# zsh (add to ~/.zshrc)
+eval "$(devflow completions --shell zsh)"
+
+# bash (add to ~/.bashrc)
+eval "$(devflow completions --shell bash)"
+```
+
+## Global Options
+
+Commands that modify git state support `--dry-run` to preview without executing:
+
+```bash
+devflow commit --dry-run
+devflow branch --dry-run
+devflow pr --dry-run
+devflow amend --dry-run
+devflow cleanup --dry-run
+devflow changelog --dry-run
+```
+
 ## Configuration
 
 Create a `.devflow.json` in your project root (or run `devflow init`):
@@ -131,20 +200,26 @@ Create a `.devflow.json` in your project root (or run `devflow init`):
 {
   "ticketBaseUrl": "https://github.com/org/repo/issues",
   "scopes": [
-    { "value": "auth", "description": "Authentication & login" },
-    { "value": "ui", "description": "UI components" },
-    { "value": "api", "description": "API layer" }
+    { "value": "auth", "description": "Authentication & login", "paths": ["src/auth/**"] },
+    { "value": "ui", "description": "UI components", "paths": ["src/components/**"] },
+    { "value": "api", "description": "API layer", "paths": ["src/api/**", "src/services/**"] }
   ],
   "branchTypes": ["feat", "fix", "chore", "refactor", "docs", "test", "release", "hotfix"],
   "commitTypes": [
     { "value": "feat", "label": "feat:     A new feature" },
     { "value": "fix", "label": "fix:      A bug fix" }
   ],
+  "commitFormat": "{type}[{ticket}]{breaking}({scope}): {message}",
   "checklist": [
     "Code follows project conventions",
     "Self-reviewed the changes",
     "No new warnings or errors introduced"
-  ]
+  ],
+  "prTemplate": {
+    "sections": ["summary", "ticket", "type", "screenshots", "testPlan", "checklist"],
+    "screenshotsTable": true
+  },
+  "prReviewers": ["copilot"]
 }
 ```
 
@@ -152,17 +227,37 @@ Create a `.devflow.json` in your project root (or run `devflow init`):
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `ticketBaseUrl` | Base URL for linking tickets in PRs (e.g., `https://github.com/org/repo/issues`) | — |
-| `scopes` | List of scopes with `value` and `description`. Enables searchable selection in commit command. | `[]` (free text input) |
-| `branchTypes` | Allowed branch type prefixes. | `["feat", "fix", "chore", "refactor", "docs", "test", "release", "hotfix"]` |
-| `commitTypes` | Commit types shown in the selection menu. Each has `value` and `label`. | Standard conventional commit types |
-| `checklist` | PR checklist items added to the template. | Basic code review items |
+| `ticketBaseUrl` | Base URL for linking tickets in PRs | — |
+| `scopes` | List of scopes with `value`, `description`, and optional `paths` for auto-inference | `[]` (free text input) |
+| `scopes[].paths` | Glob patterns to auto-suggest this scope when matching files are staged | — |
+| `branchTypes` | Allowed branch type prefixes | `["feat", "fix", "chore", ...]` |
+| `commitTypes` | Commit types shown in selection menu (`value` + `label`) | Standard conventional types |
+| `commitFormat` | Commit message format with `{type}`, `{ticket}`, `{breaking}`, `{scope}`, `{message}` placeholders | `{type}[{ticket}]{breaking}({scope}): {message}` |
+| `checklist` | PR checklist items | Basic code review items |
+| `prTemplate.sections` | PR body sections to include | All sections |
+| `prTemplate.screenshotsTable` | Include before/after screenshots table | `true` |
+| `prReviewers` | Default PR reviewers (GitHub usernames) | — |
 
 ### Scopes
 
 When `scopes` is an empty array, the commit command shows a free text input for scope. When populated, it shows a searchable list that can be filtered by typing.
 
-The commit command also infers the scope from previous commits on the branch (`git log main..HEAD`) and pre-selects it as the default.
+**Scope inference** works in two ways (first match wins):
+
+1. **From file paths** — if a scope has `paths` configured, staged files are matched against those glob patterns. The scope with the most matching files is suggested.
+2. **From git history** — previous commits on the branch (`git log main..HEAD`) are parsed for existing scopes.
+
+Example with paths:
+```json
+{
+  "scopes": [
+    { "value": "auth", "description": "Authentication", "paths": ["src/auth/**", "src/hooks/useAuth*"] },
+    { "value": "ui", "description": "UI components", "paths": ["src/components/**"] }
+  ]
+}
+```
+
+If you stage `src/auth/login.ts`, the `auth` scope is auto-suggested.
 
 ## Commitlint Integration
 

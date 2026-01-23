@@ -2,7 +2,49 @@ import { select, search, confirm, input, checkbox } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { loadConfig } from "../config.js";
 import { inferTicket, inferScope } from "../git.js";
-export async function commitCommand() {
+import { bold, cyan, dim, green } from "../colors.js";
+function inferScopeFromPaths(stagedFiles, scopes) {
+    const scopesWithPaths = scopes.filter((s) => s.paths && s.paths.length > 0);
+    if (scopesWithPaths.length === 0)
+        return undefined;
+    const matchCounts = {};
+    for (const file of stagedFiles) {
+        for (const scope of scopesWithPaths) {
+            for (const pattern of scope.paths) {
+                if (fileMatchesPattern(file, pattern)) {
+                    matchCounts[scope.value] = (matchCounts[scope.value] || 0) + 1;
+                    break;
+                }
+            }
+        }
+    }
+    const entries = Object.entries(matchCounts);
+    if (entries.length === 0)
+        return undefined;
+    entries.sort((a, b) => b[1] - a[1]);
+    return entries[0][0];
+}
+function fileMatchesPattern(file, pattern) {
+    // Simple glob: support ** and * patterns
+    const regex = pattern
+        .replace(/\*\*/g, "{{GLOBSTAR}}")
+        .replace(/\*/g, "[^/]*")
+        .replace(/\{\{GLOBSTAR\}\}/g, ".*");
+    return new RegExp(`^${regex}`).test(file);
+}
+function formatCommitMessage(format, vars) {
+    let result = format;
+    result = result.replace("{type}", vars.type);
+    result = result.replace("{ticket}", vars.ticket);
+    result = result.replace("{breaking}", vars.breaking);
+    result = result.replace("{scope}", vars.scope);
+    result = result.replace("{message}", vars.message);
+    // Remove empty optional parts: []{} or ()
+    result = result.replace(/\[\]/g, "");
+    result = result.replace(/\(\)/g, "");
+    return result;
+}
+export async function commitCommand(options = {}) {
     try {
         const config = loadConfig();
         // Check for staged files
@@ -17,6 +59,7 @@ export async function commitCommand() {
             console.log("Nothing to commit — working tree clean.");
             process.exit(0);
         }
+        let stagedFiles = staged ? staged.split("\n") : [];
         if (!staged) {
             if (allChanges.length === 1) {
                 const stageIt = await confirm({
@@ -27,7 +70,10 @@ export async function commitCommand() {
                     console.log("No files staged. Aborting.");
                     process.exit(0);
                 }
-                execSync(`git add ${JSON.stringify(allChanges[0].file)}`);
+                if (!options.dryRun) {
+                    execSync(`git add ${JSON.stringify(allChanges[0].file)}`);
+                }
+                stagedFiles = [allChanges[0].file];
             }
             else {
                 const filesToStage = await checkbox({
@@ -38,19 +84,28 @@ export async function commitCommand() {
                     ],
                     required: true,
                 });
-                if (filesToStage.includes("__ALL__")) {
-                    execSync("git add -A");
+                if (!options.dryRun) {
+                    if (filesToStage.includes("__ALL__")) {
+                        execSync("git add -A");
+                        stagedFiles = allChanges.map((c) => c.file);
+                    }
+                    else {
+                        for (const file of filesToStage) {
+                            execSync(`git add ${JSON.stringify(file)}`);
+                        }
+                        stagedFiles = filesToStage;
+                    }
                 }
                 else {
-                    for (const file of filesToStage) {
-                        execSync(`git add ${JSON.stringify(file)}`);
-                    }
+                    stagedFiles = filesToStage.includes("__ALL__")
+                        ? allChanges.map((c) => c.file)
+                        : filesToStage;
                 }
             }
         }
         else {
-            console.log("Staged files:");
-            staged.split("\n").forEach((f) => console.log(`  ${f}`));
+            console.log(dim("Staged files:"));
+            staged.split("\n").forEach((f) => console.log(dim(`  ${f}`)));
             console.log("");
         }
         const type = await select({
@@ -59,17 +114,19 @@ export async function commitCommand() {
         });
         let finalScope;
         if (config.scopes.length > 0) {
-            const inferredScope = inferScope();
+            const inferredFromPaths = inferScopeFromPaths(stagedFiles, config.scopes);
+            const inferredFromLog = inferScope();
+            const inferred = inferredFromPaths || inferredFromLog;
             finalScope = await search({
-                message: inferredScope
-                    ? `Select scope (inferred: ${inferredScope}):`
+                message: inferred
+                    ? `Select scope (suggested: ${cyan(inferred)}):`
                     : "Select scope (type to filter):",
                 source: (term) => {
                     const filtered = config.scopes.filter((s) => !term ||
                         s.value.includes(term.toLowerCase()) ||
                         s.description.toLowerCase().includes(term.toLowerCase()));
-                    if (inferredScope) {
-                        filtered.sort((a, b) => a.value === inferredScope ? -1 : b.value === inferredScope ? 1 : 0);
+                    if (inferred) {
+                        filtered.sort((a, b) => a.value === inferred ? -1 : b.value === inferred ? 1 : 0);
                     }
                     return filtered.map((s) => ({
                         value: s.value,
@@ -79,12 +136,12 @@ export async function commitCommand() {
             });
         }
         else {
-            const inferredScope = inferScope();
+            const inferredFromLog = inferScope();
             finalScope = await input({
-                message: inferredScope
-                    ? `Enter scope (default: ${inferredScope}):`
+                message: inferredFromLog
+                    ? `Enter scope (default: ${inferredFromLog}):`
                     : "Enter scope (optional):",
-                default: inferredScope,
+                default: inferredFromLog,
             });
         }
         const message = await input({
@@ -97,11 +154,21 @@ export async function commitCommand() {
         });
         const ticket = inferTicket();
         const breaking = isBreaking ? "!" : "";
-        const scopePart = finalScope ? `(${finalScope})` : "";
-        const fullMessage = `${type}[${ticket}]${breaking}${scopePart}: ${message.trim()}`;
-        console.log("\n--- Commit Preview ---");
-        console.log(fullMessage);
-        console.log("----------------------\n");
+        const scope = finalScope || "";
+        const fullMessage = formatCommitMessage(config.commitFormat, {
+            type,
+            ticket,
+            breaking,
+            scope,
+            message: message.trim(),
+        });
+        console.log(`\n${dim("───")} ${bold("Commit Preview")} ${dim("───")}`);
+        console.log(green(fullMessage));
+        console.log(`${dim("───────────────────")}\n`);
+        if (options.dryRun) {
+            console.log(dim("[dry-run] No commit created."));
+            return;
+        }
         const confirmed = await confirm({
             message: "Create this commit?",
             default: true,
@@ -113,7 +180,7 @@ export async function commitCommand() {
         execSync(`git commit -m ${JSON.stringify(fullMessage)}`, {
             stdio: "inherit",
         });
-        console.log("Commit created successfully.");
+        console.log(green("✓ Commit created successfully."));
     }
     catch (error) {
         if (error.name === "ExitPromptError") {

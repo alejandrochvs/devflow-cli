@@ -1,2 +1,4 @@
-export declare function commitCommand(): Promise<void>;
+export declare function commitCommand(options?: {
+    dryRun?: boolean;
+}): Promise<void>;
 //# sourceMappingURL=commit.d.ts.map

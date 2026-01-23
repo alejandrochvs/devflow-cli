@@ -1,8 +1,9 @@
 import { select, input, confirm } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { loadConfig } from "../config.js";
+import { bold, dim, green, cyan } from "../colors.js";
 
-export async function branchCommand(): Promise<void> {
+export async function branchCommand(options: { dryRun?: boolean } = {}): Promise<void> {
   try {
     const config = loadConfig();
 
@@ -28,9 +29,14 @@ export async function branchCommand(): Promise<void> {
       .replace(/^-|-$/g, "");
     const branchName = `${type}/${ticketPart}_${kebab}`;
 
-    console.log(`\n--- Branch Preview ---`);
-    console.log(branchName);
-    console.log(`---------------------\n`);
+    console.log(`\n${dim("───")} ${bold("Branch Preview")} ${dim("───")}`);
+    console.log(cyan(branchName));
+    console.log(`${dim("───────────────────")}\n`);
+
+    if (options.dryRun) {
+      console.log(dim("[dry-run] No branch created."));
+      return;
+    }
 
     const confirmed = await confirm({
       message: "Create this branch?",
@@ -43,7 +49,7 @@ export async function branchCommand(): Promise<void> {
     }
 
     execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-    console.log(`Branch created and checked out: ${branchName}`);
+    console.log(green(`✓ Branch created: ${branchName}`));
   } catch (error) {
     if ((error as Error).name === "ExitPromptError") {
       console.log("\nCancelled.");

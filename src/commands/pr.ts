@@ -1,6 +1,7 @@
 import { input, confirm } from "@inquirer/prompts";
 import { execSync } from "child_process";
-import { loadConfig } from "../config.js";
+import { loadConfig, DevflowConfig } from "../config.js";
+import { bold, dim, green, cyan, gray } from "../colors.js";
 import {
   getBranch,
   parseBranch,
@@ -81,7 +82,27 @@ function buildTypeCheckboxes(type: string | undefined): string {
     .join("\n");
 }
 
-export async function prCommand(): Promise<void> {
+function buildPrBody(
+  config: DevflowConfig,
+  opts: { summary: string; ticket: string; type: string | undefined; commitList: string }
+): string {
+  const sections: Record<string, string> = {
+    summary: `## Summary\n\n${opts.summary || "<!-- Brief description of what this PR does and why -->"}`,
+    ticket: `## Ticket\n\n${formatTicket(opts.ticket, config.ticketBaseUrl)}`,
+    type: `## Type of Change\n\n${buildTypeCheckboxes(opts.type)}`,
+    screenshots: `## Screenshots\n\n<!-- Add before/after screenshots for UI changes, or remove this section if not applicable -->\n\n| Before | After |\n|--------|-------|\n|        |       |`,
+    testPlan: `## Test Plan\n\n- [ ]`,
+    checklist: `## Checklist\n\n${buildChecklist(config.checklist)}`,
+  };
+
+  const activeSections = config.prTemplate.sections;
+  return activeSections
+    .map((key) => sections[key])
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export async function prCommand(options: { dryRun?: boolean } = {}): Promise<void> {
   try {
     const config = loadConfig();
     checkGhInstalled();
@@ -91,7 +112,7 @@ export async function prCommand(): Promise<void> {
     const existingPr = getExistingPr();
 
     if (existingPr) {
-      console.log(`\nPR #${existingPr.number} already exists: ${existingPr.url}`);
+      console.log(`\n${cyan(`PR #${existingPr.number}`)} already exists: ${existingPr.url}`);
       const shouldUpdate = await confirm({
         message: "Update this PR?",
         default: true,
@@ -128,33 +149,7 @@ export async function prCommand(): Promise<void> {
       .filter(Boolean)
       .join("\n\n");
 
-    const body = `## Summary
-
-${summary || "<!-- Brief description of what this PR does and why -->"}
-
-## Ticket
-
-${formatTicket(ticket, config.ticketBaseUrl)}
-
-## Type of Change
-
-${buildTypeCheckboxes(type)}
-
-## Screenshots
-
-<!-- Add before/after screenshots for UI changes, or remove this section if not applicable -->
-
-| Before | After |
-|--------|-------|
-|        |       |
-
-## Test Plan
-
-- [ ]
-
-## Checklist
-
-${buildChecklist(config.checklist)}`;
+    const body = buildPrBody(config, { summary, ticket, type, commitList });
 
     // Build preview labels
     const previewLabels: string[] = [];
@@ -163,17 +158,25 @@ ${buildChecklist(config.checklist)}`;
     previewLabels.push(...previewScopes);
     const uniquePreviewLabels = [...new Set(previewLabels)];
 
-    console.log("\n--- PR Preview ---");
+    console.log(`\n${dim("───")} ${bold("PR Preview")} ${dim("───")}`);
     if (existingPr) {
-      console.log(`(Updating existing PR #${existingPr.number})`);
+      console.log(gray(`(Updating existing PR #${existingPr.number})`));
     }
-    console.log(`Title: ${title}`);
-    console.log(`Branch: ${branch} → ${base.trim()}`);
-    console.log(`Labels: ${uniquePreviewLabels.length > 0 ? uniquePreviewLabels.join(", ") : "none"}`);
-    console.log(`Assignee: @me`);
+    console.log(`${dim("Title:")}    ${bold(title)}`);
+    console.log(`${dim("Branch:")}   ${cyan(branch)} → ${cyan(base.trim())}`);
+    console.log(`${dim("Labels:")}   ${uniquePreviewLabels.length > 0 ? uniquePreviewLabels.join(", ") : "none"}`);
+    console.log(`${dim("Assignee:")} @me`);
+    if (config.prReviewers && config.prReviewers.length > 0) {
+      console.log(`${dim("Reviewers:")} ${config.prReviewers.join(", ")}`);
+    }
     console.log("");
-    console.log(body);
-    console.log("------------------\n");
+    console.log(dim(body));
+    console.log(`${dim("─────────────────")}\n`);
+
+    if (options.dryRun) {
+      console.log(dim("[dry-run] No PR created."));
+      return;
+    }
 
     const confirmed = await confirm({
       message: existingPr
@@ -211,18 +214,23 @@ ${buildChecklist(config.checklist)}`;
       ? uniqueLabels.map((l) => JSON.stringify(l)).join(",")
       : "";
 
+    // Reviewers flag
+    const reviewerFlag = config.prReviewers && config.prReviewers.length > 0
+      ? ` --reviewer ${config.prReviewers.join(",")}`
+      : "";
+
     if (existingPr) {
       execSync(
         `gh pr edit ${existingPr.number} --title ${JSON.stringify(title)} --body-file -${labelFlag ? ` --add-label ${labelFlag}` : ""}`,
         { input: body, stdio: ["pipe", "inherit", "inherit"] }
       );
-      console.log(`PR #${existingPr.number} updated: ${existingPr.url}`);
+      console.log(green(`✓ PR #${existingPr.number} updated: ${existingPr.url}`));
     } else {
       execSync(
-        `gh pr create --draft --title ${JSON.stringify(title)} --body-file - --base ${base.trim()} --head ${branch} --assignee @me${labelFlag ? ` --label ${labelFlag}` : ""}`,
+        `gh pr create --draft --title ${JSON.stringify(title)} --body-file - --base ${base.trim()} --head ${branch} --assignee @me${reviewerFlag}${labelFlag ? ` --label ${labelFlag}` : ""}`,
         { input: body, stdio: ["pipe", "inherit", "inherit"] }
       );
-      console.log("PR created successfully.");
+      console.log(green("✓ PR created successfully."));
     }
   } catch (error) {
     if ((error as Error).name === "ExitPromptError") {

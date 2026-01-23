@@ -1,7 +1,8 @@
 import { select, input, confirm } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { loadConfig } from "../config.js";
-export async function branchCommand() {
+import { bold, dim, green, cyan } from "../colors.js";
+export async function branchCommand(options = {}) {
     try {
         const config = loadConfig();
         const type = await select({
@@ -22,9 +23,13 @@ export async function branchCommand() {
             .replace(/[^a-z0-9]+/g, "-")
             .replace(/^-|-$/g, "");
         const branchName = `${type}/${ticketPart}_${kebab}`;
-        console.log(`\n--- Branch Preview ---`);
-        console.log(branchName);
-        console.log(`---------------------\n`);
+        console.log(`\n${dim("───")} ${bold("Branch Preview")} ${dim("───")}`);
+        console.log(cyan(branchName));
+        console.log(`${dim("───────────────────")}\n`);
+        if (options.dryRun) {
+            console.log(dim("[dry-run] No branch created."));
+            return;
+        }
         const confirmed = await confirm({
             message: "Create this branch?",
             default: true,
@@ -34,7 +39,7 @@ export async function branchCommand() {
             process.exit(0);
         }
         execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-        console.log(`Branch created and checked out: ${branchName}`);
+        console.log(green(`✓ Branch created: ${branchName}`));
     }
     catch (error) {
         if (error.name === "ExitPromptError") {
