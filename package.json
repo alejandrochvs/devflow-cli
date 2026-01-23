@@ -1,5 +1,5 @@
 {
-  "name": "devflow-cli",
+  "name": "@alejandrochaves/devflow-cli",
   "version": "0.1.0",
   "description": "Interactive CLI for branch creation, conventional commits, and PR management",
   "type": "module",
@@ -9,6 +9,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "publish:public": "npm publish --access=public",
     "prepublishOnly": "npm run build"
   },
   "keywords": ["cli", "git", "commits", "conventional-commits", "branch", "pull-request"],
