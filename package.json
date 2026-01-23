@@ -1,6 +1,6 @@
 {
   "name": "@alejandrochaves/devflow-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Interactive CLI for branch creation, conventional commits, and PR management",
   "type": "module",
   "bin": {
@@ -12,9 +12,18 @@
     "publish:public": "npm publish --access=public",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["cli", "git", "commits", "conventional-commits", "branch", "pull-request"],
+  "keywords": [
+    "cli",
+    "git",
+    "commits",
+    "conventional-commits",
+    "branch",
+    "pull-request"
+  ],
   "license": "MIT",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=18"
   },
