@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { readFileSync } from "fs";
 import { branchCommand } from "./commands/branch.js";
 import { commitCommand } from "./commands/commit.js";
 import { prCommand } from "./commands/pr.js";
@@ -15,6 +16,8 @@ import { fixupCommand } from "./commands/fixup.js";
 import { testPlanCommand } from "./commands/test-plan.js";
 import { checkForUpdates } from "./update-notifier.js";
 
+const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8"));
+
 // Check for updates (non-blocking, cached)
 checkForUpdates();
 
@@ -23,7 +26,7 @@ const program = new Command();
 program
   .name("devflow")
   .description("Interactive CLI for branch creation, conventional commits, and PR management")
-  .version("0.3.0");
+  .version(pkg.version);
 
 // --- Core commands ---
 
