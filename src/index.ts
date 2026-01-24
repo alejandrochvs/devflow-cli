@@ -105,6 +105,8 @@ program
   .alias("cm")
   .description("Show PR reviews and inline comments with diff context")
   .option("--number <number>", "PR number (defaults to current branch PR)")
+  .option("--resolved", "Show only resolved comments")
+  .option("--unresolved", "Show only unresolved comments")
   .action((opts) => commentsCommand(opts));
 
 program
