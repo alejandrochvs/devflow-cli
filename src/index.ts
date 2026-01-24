@@ -14,6 +14,14 @@ import { undoCommand } from "./commands/undo.js";
 import { mergeCommand } from "./commands/merge.js";
 import { fixupCommand } from "./commands/fixup.js";
 import { testPlanCommand } from "./commands/test-plan.js";
+import { releaseCommand } from "./commands/release.js";
+import { reviewCommand } from "./commands/review.js";
+import { stashCommand } from "./commands/stash.js";
+import { worktreeCommand } from "./commands/worktree.js";
+import { logCommand } from "./commands/log.js";
+import { statsCommand } from "./commands/stats.js";
+import { lintConfigCommand } from "./commands/lint-config.js";
+import { loadPlugins } from "./plugins.js";
 import { checkForUpdates } from "./update-notifier.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8"));
@@ -79,6 +87,36 @@ program
   .option("--dry-run", "Preview without executing git commands")
   .action((opts) => mergeCommand(opts));
 
+program
+  .command("release")
+  .alias("rel")
+  .description("Create a release with version bump, changelog, tag, and GitHub release")
+  .action(releaseCommand);
+
+program
+  .command("review")
+  .alias("rv")
+  .description("List and interact with open pull requests")
+  .action(reviewCommand);
+
+program
+  .command("stash")
+  .alias("st")
+  .description("Save, pop, apply, or drop named stashes")
+  .action(stashCommand);
+
+program
+  .command("worktree")
+  .alias("wt")
+  .description("Manage git worktrees for parallel branch work")
+  .action(worktreeCommand);
+
+program
+  .command("log")
+  .alias("l")
+  .description("Interactive commit log with cherry-pick, revert, and fixup actions")
+  .action(logCommand);
+
 // --- Info commands ---
 
 program
@@ -105,6 +143,17 @@ program
   .option("--dry-run", "Preview without deleting branches")
   .action((opts) => cleanupCommand(opts));
 
+program
+  .command("stats")
+  .description("Show commit type distribution, top scopes, and contributor stats")
+  .action(statsCommand);
+
+program
+  .command("lint-config")
+  .alias("lint")
+  .description("Validate .devflow.json for errors and warnings (CI-friendly)")
+  .action(lintConfigCommand);
+
 // --- Setup commands ---
 
 program
@@ -129,6 +178,9 @@ program
     }
   });
 
+// Load plugins before parsing
+await loadPlugins(program);
+
 program.parse();
 
 function generateBashCompletions(): string {
@@ -136,7 +188,7 @@ function generateBashCompletions(): string {
 # Add to ~/.bashrc: eval "$(devflow completions --shell bash)"
 _devflow_completions() {
   local cur="\${COMP_WORDS[COMP_CWORD]}"
-  local commands="branch commit pr amend undo fixup merge status test-plan changelog cleanup init doctor completions"
+  local commands="branch commit pr amend undo fixup merge release review stash worktree log status test-plan changelog cleanup stats lint-config init doctor completions"
 
   if [ "\${COMP_CWORD}" -eq 1 ]; then
     COMPREPLY=($(compgen -W "\${commands}" -- "\${cur}"))
@@ -160,10 +212,17 @@ _devflow() {
     'undo:Undo the last commit (alias: u)'
     'fixup:Create a fixup commit (alias: f)'
     'merge:Merge the current PR (alias: m)'
+    'release:Create a release (alias: rel)'
+    'review:List and interact with PRs (alias: rv)'
+    'stash:Manage named stashes (alias: st)'
+    'worktree:Manage git worktrees (alias: wt)'
+    'log:Interactive commit log (alias: l)'
     'status:Show branch and PR info (alias: s)'
     'test-plan:View or edit test plan (alias: tp)'
     'changelog:Generate changelog from commits'
     'cleanup:Delete merged local branches'
+    'stats:Show commit and contributor stats'
+    'lint-config:Validate .devflow.json (alias: lint)'
     'init:Initialize devflow config'
     'doctor:Check devflow dependencies'
     'completions:Output shell completion script'

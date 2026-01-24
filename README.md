@@ -82,9 +82,11 @@ Interactive conventional commit with file staging, scope selection, and ticket i
 1. If no files are staged, select files to stage (checkbox selection)
 2. Select commit type
 3. Select or enter scope (searchable list if configured, free text otherwise)
-4. Enter commit message
-5. Confirm if breaking change
-6. Preview and confirm
+4. Enter commit subject
+5. Optional: enter commit body (longer description)
+6. Confirm if breaking change (adds `BREAKING CHANGE:` footer)
+7. Optional: enter ticket reference (added as `Refs: TICKET` footer)
+8. Preview and confirm
 
 **Commit format:**
 ```
@@ -153,6 +155,91 @@ When you run `devflow pr`, stored test plan steps auto-populate the "Test Plan" 
 - [ ] Confirm logout clears session data
 ```
 
+### `devflow release` (alias: `rel`)
+
+Automated release flow: version bump, changelog update, git tag, push, and GitHub release.
+
+**Flow:**
+1. Detects current version from `package.json`
+2. Analyzes commits since last tag to suggest bump type (patch/minor/major)
+3. Confirm version
+4. Updates `CHANGELOG.md` with grouped commits
+5. Commits version bump and changelog
+6. Creates git tag
+7. Pushes tag and commits
+8. Creates GitHub release with changelog body
+
+Requires `gh` CLI for the GitHub release step.
+
+### `devflow review` (alias: `rv`)
+
+List and interact with open pull requests.
+
+**Flow:**
+1. Lists open PRs for the repo with author, title, and status
+2. Select a PR to inspect
+3. Shows diff stat summary
+4. Choose an action: checkout, approve, comment, request changes, or open in browser
+
+Requires `gh` CLI.
+
+### `devflow stash` (alias: `st`)
+
+Named stash management with an interactive interface.
+
+**Actions:**
+- **Save** — stash with a descriptive name, optionally include untracked files
+- **Pop** — apply and remove a stash
+- **Apply** — apply without removing
+- **Drop** — delete a stash
+- **Show** — view the stash diff
+
+### `devflow worktree` (alias: `wt`)
+
+Manage git worktrees for working on multiple branches in parallel.
+
+**Actions:**
+- **Add** — create a new worktree (auto-creates branch if needed), suggests a path based on repo root
+- **Remove** — select and remove a worktree (with force option for dirty trees)
+
+Shows all existing worktrees with the current one highlighted.
+
+### `devflow log` (alias: `l`)
+
+Interactive commit history with actions.
+
+**Flow:**
+1. Shows commits on the current branch (since diverging from base)
+2. Select a commit to inspect
+3. Shows commit details and file stats
+4. Choose an action: cherry-pick, revert, create fixup, or view full diff
+
+### `devflow stats`
+
+Show commit pattern analytics for the repository:
+
+- **Commit types** — distribution with bar chart (feat, fix, chore, etc.)
+- **Top scopes** — most frequently used scopes
+- **Contributors** — commit counts per author
+- **Summary** — total commits, local branches, first commit date
+
+### `devflow lint-config` (alias: `lint`)
+
+Validate `.devflow.json` for errors and warnings. Designed to run in CI pipelines (exits with code 1 on errors).
+
+**Checks:**
+- Valid JSON syntax
+- Config structure validation (via `validateConfig`)
+- Scopes have descriptions
+- Scope path patterns contain globs or path separators
+- PR template sections are recognized values
+- Commit format placeholders are valid
+
+```bash
+# In CI
+npx devflow lint-config
+```
+
 ### `devflow undo` (alias: `u`)
 
 Undo the last commit, keeping changes staged. Shows a preview of the commit that will be undone before confirming.
@@ -208,7 +295,7 @@ Generates a changelog entry from conventional commits since the last git tag:
 ### `devflow doctor`
 
 Checks that all devflow dependencies are properly configured:
-- git, node (>= 18), gh CLI + auth
+- git, node (>= 20), gh CLI + auth
 - `.devflow.json`, commitlint config, husky hooks
 - `package.json` scripts
 
@@ -235,8 +322,14 @@ eval "$(devflow completions --shell bash)"
 | `devflow undo` | `devflow u` |
 | `devflow fixup` | `devflow f` |
 | `devflow merge` | `devflow m` |
+| `devflow release` | `devflow rel` |
+| `devflow review` | `devflow rv` |
+| `devflow stash` | `devflow st` |
+| `devflow worktree` | `devflow wt` |
+| `devflow log` | `devflow l` |
 | `devflow status` | `devflow s` |
 | `devflow test-plan` | `devflow tp` |
+| `devflow lint-config` | `devflow lint` |
 
 ## Global Options
 
@@ -400,6 +493,38 @@ devflow checks for newer versions on npm once every 24 hours and displays a non-
 ```
 ─ Update available: 0.2.0 → 0.3.0 (npm update @alejandrochaves/devflow-cli) ─
 ```
+
+## Plugins
+
+Extend devflow with custom commands via the plugin system. Plugins are automatically discovered from:
+
+1. **npm packages** — any dependency matching `devflow-plugin-*` or `@scope/devflow-plugin-*`
+2. **Config** — explicit list in `.devflow.json`:
+
+```json
+{
+  "plugins": ["devflow-plugin-jira", "@myorg/devflow-plugin-deploy"]
+}
+```
+
+### Writing a Plugin
+
+A plugin is an npm package that exports a `register` function:
+
+```typescript
+import { Command } from "commander";
+
+export function register(program: Command): void {
+  program
+    .command("deploy")
+    .description("Deploy the current branch")
+    .action(() => {
+      // your logic here
+    });
+}
+```
+
+Plugins receive the Commander `program` instance and can add commands, options, or hooks.
 
 ## Requirements
 

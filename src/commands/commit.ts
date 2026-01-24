@@ -195,7 +195,7 @@ export async function commitCommand(options: { dryRun?: boolean } = {}): Promise
     const breaking = isBreaking ? "!" : "";
     const scope = finalScope || "";
 
-    const fullMessage = formatCommitMessage(config.commitFormat, {
+    const subject = formatCommitMessage(config.commitFormat, {
       type,
       ticket,
       breaking,
@@ -203,8 +203,41 @@ export async function commitCommand(options: { dryRun?: boolean } = {}): Promise
       message: message.trim(),
     });
 
+    // Optional body
+    const addBody = await confirm({
+      message: "Add a longer description (body)?",
+      default: false,
+    });
+
+    let body = "";
+    if (addBody) {
+      body = await input({
+        message: "Body (longer explanation):",
+      });
+    }
+
+    // Breaking change footer
+    let breakingFooter = "";
+    if (isBreaking) {
+      breakingFooter = await input({
+        message: "Describe the breaking change:",
+        validate: (val) => val.trim().length > 0 || "Breaking change description is required",
+      });
+    }
+
+    // Build full message
+    const parts = [subject];
+    if (body.trim()) parts.push(body.trim());
+    const footers: string[] = [];
+    if (breakingFooter.trim()) footers.push(`BREAKING CHANGE: ${breakingFooter.trim()}`);
+    if (ticket && ticket !== "UNTRACKED") footers.push(`Refs: ${ticket}`);
+    if (footers.length > 0) parts.push(footers.join("\n"));
+    const fullMessage = parts.join("\n\n");
+
     console.log(`\n${dim("───")} ${bold("Commit Preview")} ${dim("───")}`);
-    console.log(green(fullMessage));
+    console.log(green(subject));
+    if (body.trim()) console.log(`\n${body.trim()}`);
+    if (footers.length > 0) console.log(`\n${dim(footers.join("\n"))}`);
     console.log(`${dim("───────────────────")}\n`);
 
     if (options.dryRun) {
