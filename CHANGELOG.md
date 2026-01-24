@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0] - 2026-01-23
+
+### Features
+
+- **comments** — New command to show PR reviews and inline comments with diff context (`devflow comments` / `devflow cm`)
+- **Documentation site** — VitePress-powered docs at devflow.alejandrochaves.dev with landing page, command reference, and configuration guide
+- **Roadmap** — Public roadmap page with planned ticket provider integrations (GitHub, Jira, Linear, GitLab, Azure DevOps, Shortcut, Trello, Notion)
+
 ## [0.3.0] - 2025-01-23
 
 ### Features
