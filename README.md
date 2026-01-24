@@ -183,6 +183,21 @@ List and interact with open pull requests.
 
 Requires `gh` CLI.
 
+### `devflow comments` (alias: `cm`)
+
+Show PR reviews and inline comments with diff context. Displays all reviews and inline code comments grouped by file, with the surrounding diff hunk so you can see exactly what was commented on.
+
+**Usage:**
+```bash
+# Comments for the current branch's PR
+devflow comments
+
+# Comments for a specific PR
+devflow comments --number 303
+```
+
+Requires `gh` CLI.
+
 ### `devflow stash` (alias: `st`)
 
 Named stash management with an interactive interface.
@@ -324,6 +339,7 @@ eval "$(devflow completions --shell bash)"
 | `devflow merge` | `devflow m` |
 | `devflow release` | `devflow rel` |
 | `devflow review` | `devflow rv` |
+| `devflow comments` | `devflow cm` |
 | `devflow stash` | `devflow st` |
 | `devflow worktree` | `devflow wt` |
 | `devflow log` | `devflow l` |

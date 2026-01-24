@@ -21,6 +21,7 @@ import { worktreeCommand } from "./commands/worktree.js";
 import { logCommand } from "./commands/log.js";
 import { statsCommand } from "./commands/stats.js";
 import { lintConfigCommand } from "./commands/lint-config.js";
+import { commentsCommand } from "./commands/comments.js";
 import { loadPlugins } from "./plugins.js";
 import { checkForUpdates } from "./update-notifier.js";
 
@@ -98,6 +99,13 @@ program
   .alias("rv")
   .description("List and interact with open pull requests")
   .action(reviewCommand);
+
+program
+  .command("comments")
+  .alias("cm")
+  .description("Show PR reviews and inline comments with diff context")
+  .option("--number <number>", "PR number (defaults to current branch PR)")
+  .action((opts) => commentsCommand(opts));
 
 program
   .command("stash")
@@ -188,7 +196,7 @@ function generateBashCompletions(): string {
 # Add to ~/.bashrc: eval "$(devflow completions --shell bash)"
 _devflow_completions() {
   local cur="\${COMP_WORDS[COMP_CWORD]}"
-  local commands="branch commit pr amend undo fixup merge release review stash worktree log status test-plan changelog cleanup stats lint-config init doctor completions"
+  local commands="branch commit pr amend undo fixup merge release review comments stash worktree log status test-plan changelog cleanup stats lint-config init doctor completions"
 
   if [ "\${COMP_CWORD}" -eq 1 ]; then
     COMPREPLY=($(compgen -W "\${commands}" -- "\${cur}"))
@@ -214,6 +222,7 @@ _devflow() {
     'merge:Merge the current PR (alias: m)'
     'release:Create a release (alias: rel)'
     'review:List and interact with PRs (alias: rv)'
+    'comments:Show PR reviews and inline comments (alias: cm)'
     'stash:Manage named stashes (alias: st)'
     'worktree:Manage git worktrees (alias: wt)'
     'log:Interactive commit log (alias: l)'

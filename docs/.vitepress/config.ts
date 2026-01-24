@@ -45,6 +45,7 @@ export default defineConfig({
         items: [
           { text: 'release', link: '/commands/release' },
           { text: 'review', link: '/commands/review' },
+          { text: 'comments', link: '/commands/comments' },
           { text: 'stash', link: '/commands/stash' },
           { text: 'worktree', link: '/commands/worktree' },
           { text: 'log', link: '/commands/log' },

@@ -82,6 +82,7 @@ Most commands have short aliases for quick access:
 | `devflow merge` | `devflow m` |
 | `devflow release` | `devflow rel` |
 | `devflow review` | `devflow rv` |
+| `devflow comments` | `devflow cm` |
 | `devflow stash` | `devflow st` |
 | `devflow worktree` | `devflow wt` |
 | `devflow log` | `devflow l` |
