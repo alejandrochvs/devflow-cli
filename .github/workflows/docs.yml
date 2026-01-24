@@ -6,8 +6,6 @@ on:
     paths:
       - 'docs/**'
       - 'package.json'
-  release:
-    types: [published]
 
 permissions:
   contents: read
