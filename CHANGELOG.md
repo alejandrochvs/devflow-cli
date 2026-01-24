@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0] - 2026-01-23
+
+### Features
+
+- **comments** — Added `--resolved` and `--unresolved` flags for filtering comment threads
+- **comments** — Switched to GitHub GraphQL API for accurate thread resolution status
+- **roadmap** — Added GitLab full support plan (git host abstraction + `glab` CLI integration)
+
+### Fixes
+
+- **docs** — Removed release trigger from docs workflow to avoid GitHub Pages environment protection errors
+
 ## [0.5.0] - 2026-01-23
 
 ### Features
