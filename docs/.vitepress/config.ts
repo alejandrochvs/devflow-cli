@@ -14,6 +14,7 @@ export default defineConfig({
       { text: 'Commands', link: '/commands/branch' },
       { text: 'Configuration', link: '/configuration' },
       { text: 'Plugins', link: '/plugins' },
+      { text: 'Roadmap', link: '/roadmap' },
     ],
 
     sidebar: [
@@ -24,6 +25,7 @@ export default defineConfig({
           { text: 'Configuration', link: '/configuration' },
           { text: 'Integrations', link: '/integrations' },
           { text: 'Plugins', link: '/plugins' },
+          { text: 'Roadmap', link: '/roadmap' },
         ],
       },
       {
