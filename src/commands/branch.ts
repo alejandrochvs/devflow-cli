@@ -1,34 +1,132 @@
 import { select, input, confirm } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { loadConfig } from "../config.js";
-import { bold, dim, green, cyan } from "../colors.js";
+import { bold, dim, green, cyan, gray } from "../colors.js";
 import { setTestPlan } from "../test-plan.js";
+import { createTicketProvider, inferBranchTypeFromLabels, Ticket } from "../providers/tickets.js";
+
+export function formatBranchName(
+  format: string,
+  vars: { type: string; ticket?: string; description: string; scope?: string }
+): string {
+  let result = format;
+  result = result.replace("{type}", vars.type);
+  result = result.replace("{ticket}", vars.ticket || "");
+  result = result.replace("{description}", vars.description);
+  result = result.replace("{scope}", vars.scope || "");
+  // Clean up empty parts: double slashes, leading/trailing slashes
+  result = result.replace(/\/\//g, "/").replace(/^\/|\/$/g, "");
+  // Clean up empty parts: double underscores, leading/trailing underscores
+  result = result.replace(/__+/g, "_").replace(/^_|_$/g, "");
+  // Clean up underscore next to slash
+  result = result.replace(/\/_/g, "/").replace(/_\//g, "/");
+  return result;
+}
+
+function toKebabCase(str: string): string {
+  return str
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function formatIssueChoice(ticket: Ticket): { value: Ticket; name: string } {
+  const labels = ticket.labels.length > 0 ? gray(` (${ticket.labels.join(", ")})`) : "";
+  return {
+    value: ticket,
+    name: `#${ticket.id} ${ticket.title}${labels}`,
+  };
+}
 
 export async function branchCommand(options: { dryRun?: boolean } = {}): Promise<void> {
   try {
     const config = loadConfig();
+    const branchFormat = config.branchFormat;
+    const needsTicket = branchFormat.includes("{ticket}");
+
+    // Check if ticket provider is configured
+    const ticketProvider = createTicketProvider(config.ticketProvider);
+
+    let ticket: string | undefined;
+    let selectedIssue: Ticket | undefined;
+    let inferredType: string | undefined;
+    let suggestedDescription: string | undefined;
+
+    // If provider is configured and format needs ticket, offer issue picker
+    if (ticketProvider && needsTicket) {
+      const ticketMethod = await select({
+        message: "How do you want to select the ticket?",
+        choices: [
+          { value: "pick", name: "Pick from open issues (assigned to me)" },
+          { value: "manual", name: "Enter manually" },
+          { value: "skip", name: "Skip (UNTRACKED)" },
+        ],
+      });
+
+      if (ticketMethod === "pick") {
+        const issues = ticketProvider.listOpen({ assignee: "@me" });
+
+        if (issues.length === 0) {
+          console.log(dim("No open issues assigned to you. Falling back to manual input."));
+          ticket = await input({
+            message: "Ticket number (leave blank for UNTRACKED):",
+          });
+          ticket = ticket.trim() || "UNTRACKED";
+        } else {
+          selectedIssue = await select({
+            message: "Select an issue:",
+            choices: issues.map(formatIssueChoice),
+          });
+
+          ticket = selectedIssue.id;
+          inferredType = inferBranchTypeFromLabels(selectedIssue.labels);
+          suggestedDescription = toKebabCase(selectedIssue.title);
+
+          if (inferredType) {
+            console.log(dim(`  Inferred type from labels: ${cyan(inferredType)}`));
+          }
+        }
+      } else if (ticketMethod === "manual") {
+        ticket = await input({
+          message: "Ticket number (leave blank for UNTRACKED):",
+        });
+        ticket = ticket.trim() || "UNTRACKED";
+      } else {
+        ticket = "UNTRACKED";
+      }
+    } else if (needsTicket) {
+      // No provider, use manual input
+      ticket = await input({
+        message: "Ticket number (leave blank for UNTRACKED):",
+      });
+      ticket = ticket.trim() || "UNTRACKED";
+    }
+
+    // Select branch type (with inferred default if available)
+    const typeChoices = config.branchTypes.map((t) => ({ value: t, name: t }));
+    const defaultType = inferredType && config.branchTypes.includes(inferredType) ? inferredType : undefined;
 
     const type = await select({
       message: "Select branch type:",
-      choices: config.branchTypes.map((t) => ({ value: t, name: t })),
+      choices: typeChoices,
+      default: defaultType,
     });
 
-    const ticket = await input({
-      message: "Ticket number (leave blank for UNTRACKED):",
-    });
-
+    // Get description (with suggested default if available)
     const description = await input({
       message: "Short description:",
+      default: suggestedDescription,
       validate: (val) => val.trim().length > 0 || "Description is required",
     });
 
-    const ticketPart = ticket.trim() || "UNTRACKED";
-    const kebab = description
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-    const branchName = `${type}/${ticketPart}_${kebab}`;
+    const kebab = toKebabCase(description);
+
+    const branchName = formatBranchName(branchFormat, {
+      type,
+      ticket,
+      description: kebab,
+    });
 
     console.log(`\n${dim("───")} ${bold("Branch Preview")} ${dim("───")}`);
     console.log(cyan(branchName));

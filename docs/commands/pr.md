@@ -23,6 +23,7 @@ Create or update a pull request with an auto-filled template.
 - Self-assigns with `@me`
 - Creates as draft by default
 - Links ticket if `ticketBaseUrl` is configured
+- **Auto-close syntax** with GitHub Issues provider (`Closes #123`)
 
 ## PR Template Sections
 
@@ -32,6 +33,18 @@ Create or update a pull request with an auto-filled template.
 - Screenshots table
 - Test Plan
 - Checklist (customizable via config)
+
+## GitHub Issues Auto-Close
+
+When `ticketProvider: { type: "github" }` is configured and the ticket is a GitHub issue number, the PR body uses `Closes #N` syntax instead of a link:
+
+```markdown
+## Ticket
+
+Closes #142
+```
+
+This automatically closes the issue when the PR is merged.
 
 ## Options
 

@@ -1,10 +1,14 @@
 # issue
 
-Create GitHub issues using Scrum-style templates with an interactive flow.
+Create GitHub issues using configurable templates with an interactive flow.
 
 **Alias:** `devflow i`
 
-## Issue Types
+## Issue Types by Preset
+
+Issue types are configurable and depend on your selected preset:
+
+### Scrum Preset
 
 | Type | Label | Branch Type |
 |------|-------|-------------|
@@ -13,6 +17,23 @@ Create GitHub issues using Scrum-style templates with an interactive flow.
 | Task | `task` | `chore/` |
 | Spike | `spike` | `chore/` |
 | Tech Debt | `tech-debt` | `refactor/` |
+
+### Kanban Preset
+
+| Type | Label | Branch Type |
+|------|-------|-------------|
+| Feature | `enhancement` | `feat/` |
+| Bug | `bug` | `fix/` |
+| Improvement | `enhancement` | `refactor/` |
+| Task | `task` | `chore/` |
+
+### Simple Preset
+
+| Type | Label | Branch Type |
+|------|-------|-------------|
+| Feature | `enhancement` | `feat/` |
+| Bug | `bug` | `fix/` |
+| Task | `task` | `chore/` |
 
 ## Flow
 
@@ -166,6 +187,47 @@ For User Stories and Bugs, you can also add test plan steps that will be include
 | Option | Description |
 |--------|-------------|
 | `--dry-run` | Preview the issue without creating it |
+
+## Custom Issue Types
+
+You can define custom issue types in `.devflow.json`:
+
+```json
+{
+  "issueTypes": [
+    {
+      "value": "feature",
+      "label": "Feature",
+      "labelColor": "enhancement",
+      "branchType": "feat",
+      "fields": [
+        { "name": "description", "prompt": "Describe the feature:", "type": "input", "required": true },
+        { "name": "value", "prompt": "Business value:", "type": "input", "required": false },
+        { "name": "criteria", "prompt": "Done criteria:", "type": "list", "required": true }
+      ],
+      "template": "## Feature\n\n{description}\n{value:section:Business Value}\n\n### Done Criteria\n\n{criteria:checkbox}"
+    }
+  ]
+}
+```
+
+### Field Types
+
+| Type | Description |
+|------|-------------|
+| `input` | Single line text |
+| `multiline` | Opens text editor |
+| `select` | Dropdown (requires `options` array) |
+| `list` | Collect items until blank line |
+
+### Template Syntax
+
+| Syntax | Description |
+|--------|-------------|
+| `{field}` | Simple replacement |
+| `{field:checkbox}` | List as checkboxes (`- [ ] item`) |
+| `{field:numbered}` | List as numbered (`1. item`) |
+| `{field:section:Title}` | Only shown if field has value |
 
 ## Requirements
 

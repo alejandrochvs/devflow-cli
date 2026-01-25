@@ -34,8 +34,27 @@ const BRANCH_TYPE_TO_LABEL: Record<string, { name: string; color: string }> = {
   release: { name: "release", color: "6F42C1" },
 };
 
-function formatTicket(ticket: string, ticketBaseUrl?: string): string {
+interface TicketFormatOptions {
+  ticket: string;
+  ticketBaseUrl?: string;
+  ticketProvider?: { type: string };
+}
+
+function formatTicket(opts: TicketFormatOptions): string {
+  const { ticket, ticketBaseUrl, ticketProvider } = opts;
+
   if (ticket === "UNTRACKED") return "UNTRACKED";
+
+  // If using GitHub provider and ticket is numeric, use "Closes #N" syntax
+  if (ticketProvider?.type === "github") {
+    // Remove # prefix if present, check if numeric
+    const numericTicket = ticket.replace(/^#/, "");
+    if (/^\d+$/.test(numericTicket)) {
+      return `Closes #${numericTicket}`;
+    }
+  }
+
+  // Fallback to link format
   if (!ticketBaseUrl) return ticket;
   return `[${ticket}](${ticketBaseUrl}/${ticket})`;
 }
@@ -94,9 +113,15 @@ function buildPrBody(
   config: DevflowConfig,
   opts: { summary: string; ticket: string; type: string | undefined; commitList: string; testPlanSteps: string[] }
 ): string {
+  const ticketFormatted = formatTicket({
+    ticket: opts.ticket,
+    ticketBaseUrl: config.ticketBaseUrl,
+    ticketProvider: config.ticketProvider,
+  });
+
   const sections: Record<string, string> = {
     summary: `## Summary\n\n${opts.summary || "<!-- Brief description of what this PR does and why -->"}`,
-    ticket: `## Ticket\n\n${formatTicket(opts.ticket, config.ticketBaseUrl)}`,
+    ticket: `## Ticket\n\n${ticketFormatted}`,
     type: `## Type of Change\n\n${buildTypeCheckboxes(opts.type)}`,
     screenshots: `## Screenshots\n\n<!-- Add before/after screenshots for UI changes, or remove this section if not applicable -->\n\n| Before | After |\n|--------|-------|\n|        |       |`,
     testPlan: buildTestPlanSection(opts.testPlanSteps),

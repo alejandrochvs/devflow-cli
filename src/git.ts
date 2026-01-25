@@ -6,17 +6,59 @@ export function getBranch(): string {
   return execSync("git branch --show-current", { encoding: "utf-8" }).trim();
 }
 
-export function parseBranch(branch: string) {
-  const match = branch.match(/^([^/]+)\/([^_]+)_(.+)$/);
-  if (!match) return { type: undefined, ticket: "UNTRACKED", description: branch };
-  return { type: match[1], ticket: match[2], description: match[3].replace(/-/g, " ") };
+interface ParsedBranch {
+  type: string | undefined;
+  ticket: string;
+  description: string;
 }
 
-export function inferTicket(): string {
+export function parseBranch(branch: string, format?: string): ParsedBranch {
+  // Default format for backwards compatibility
+  const fmt = format || "{type}/{ticket}_{description}";
+
+  // Determine which placeholders exist in the format
+  const hasTicket = fmt.includes("{ticket}");
+
+  // Build regex from format - replace placeholders with capture groups
+  // Escape special regex chars first, then replace placeholders
+  let regexStr = fmt
+    .replace(/[.*+?^${}()|[\]\\]/g, (c) => (c === "{" || c === "}" ? c : "\\" + c))
+    .replace("{type}", "([^/]+)")
+    .replace("{ticket}", "([^_]+)")
+    .replace("{description}", "(.+)")
+    .replace("{scope}", "([^/]+)");
+
+  // Find the order of placeholders in the format
+  const placeholderOrder: string[] = [];
+  const placeholderRegex = /\{(type|ticket|description|scope)\}/g;
+  let placeholderMatch;
+  while ((placeholderMatch = placeholderRegex.exec(fmt)) !== null) {
+    placeholderOrder.push(placeholderMatch[1]);
+  }
+
+  const match = branch.match(new RegExp(`^${regexStr}$`));
+  if (!match) {
+    return { type: undefined, ticket: "UNTRACKED", description: branch };
+  }
+
+  // Map captures back to field names based on placeholder order
+  const result: Record<string, string> = {};
+  for (let i = 0; i < placeholderOrder.length; i++) {
+    result[placeholderOrder[i]] = match[i + 1];
+  }
+
+  return {
+    type: result.type,
+    ticket: hasTicket ? (result.ticket || "UNTRACKED") : "UNTRACKED",
+    description: (result.description || branch).replace(/-/g, " "),
+  };
+}
+
+export function inferTicket(format?: string): string {
   try {
     const branch = getBranch();
-    const match = branch.match(/^[^/]+\/([^_]+)_/);
-    if (match) return match[1];
+    const parsed = parseBranch(branch, format);
+    return parsed.ticket;
   } catch {
     // Not on a branch
   }

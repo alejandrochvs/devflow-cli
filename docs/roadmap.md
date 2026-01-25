@@ -29,7 +29,7 @@ Configure in `.devflow.json`:
 
 ## Integrations
 
-### GitHub Issues <Badge type="tip" text="Built-in" /> <Badge type="info" text="Next Release" />
+### GitHub Issues <Badge type="tip" text="Built-in" /> <Badge type="tip" text="Available" />
 
 |  |  |
 |--|--|
@@ -183,6 +183,7 @@ Notion requires more configuration than other providers due to its custom databa
 | Badge | Meaning |
 |-------|---------|
 | <Badge type="tip" text="Built-in" /> | Ships with devflow core, no install needed |
+| <Badge type="tip" text="Available" /> | Feature is implemented and ready to use |
 | <Badge type="warning" text="Plugin" /> | Install as separate npm package |
 | <Badge type="info" text="Next Release" /> | Coming in the next minor version |
 | <Badge type="info" text="Planned" /> | On the roadmap, not yet started |

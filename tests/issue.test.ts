@@ -1,15 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { SCRUM_PRESET, KANBAN_PRESET, SIMPLE_PRESET } from "../src/config.js";
+import { formatBranchName } from "../src/commands/branch.js";
 
-// Issue type definitions matching the command
-const ISSUE_TYPES = [
-  { value: "user-story", label: "User Story", labelColor: "feature", branchType: "feat" },
-  { value: "bug", label: "Bug", labelColor: "bug", branchType: "fix" },
-  { value: "task", label: "Task", labelColor: "task", branchType: "chore" },
-  { value: "spike", label: "Spike", labelColor: "spike", branchType: "chore" },
-  { value: "tech-debt", label: "Tech Debt", labelColor: "tech-debt", branchType: "refactor" },
-];
+describe("scrum issue types", () => {
+  const ISSUE_TYPES = SCRUM_PRESET.issueTypes;
 
-describe("issue types", () => {
   it("has 5 scrum issue types", () => {
     expect(ISSUE_TYPES).toHaveLength(5);
   });
@@ -43,6 +38,62 @@ describe("issue types", () => {
     expect(techDebt?.branchType).toBe("refactor");
     expect(techDebt?.labelColor).toBe("tech-debt");
   });
+
+  it("all issue types have required fields", () => {
+    for (const issueType of ISSUE_TYPES) {
+      expect(issueType.value).toBeDefined();
+      expect(issueType.label).toBeDefined();
+      expect(issueType.branchType).toBeDefined();
+      expect(issueType.fields).toBeDefined();
+      expect(issueType.template).toBeDefined();
+    }
+  });
+
+  it("user story has as-a/i-want/so-that fields", () => {
+    const userStory = ISSUE_TYPES.find((t) => t.value === "user-story");
+    const fieldNames = userStory?.fields.map((f) => f.name);
+    expect(fieldNames).toContain("asA");
+    expect(fieldNames).toContain("iWant");
+    expect(fieldNames).toContain("soThat");
+    expect(fieldNames).toContain("criteria");
+  });
+});
+
+describe("kanban issue types", () => {
+  const ISSUE_TYPES = KANBAN_PRESET.issueTypes;
+
+  it("has 4 kanban issue types", () => {
+    expect(ISSUE_TYPES).toHaveLength(4);
+  });
+
+  it("includes feature, bug, improvement, task", () => {
+    const types = ISSUE_TYPES.map((t) => t.value);
+    expect(types).toContain("feature");
+    expect(types).toContain("bug");
+    expect(types).toContain("improvement");
+    expect(types).toContain("task");
+  });
+});
+
+describe("simple issue types", () => {
+  const ISSUE_TYPES = SIMPLE_PRESET.issueTypes;
+
+  it("has 3 simple issue types", () => {
+    expect(ISSUE_TYPES).toHaveLength(3);
+  });
+
+  it("includes feature, bug, task", () => {
+    const types = ISSUE_TYPES.map((t) => t.value);
+    expect(types).toContain("feature");
+    expect(types).toContain("bug");
+    expect(types).toContain("task");
+  });
+
+  it("feature has minimal fields", () => {
+    const feature = ISSUE_TYPES.find((t) => t.value === "feature");
+    expect(feature?.fields).toHaveLength(1);
+    expect(feature?.fields[0].name).toBe("description");
+  });
 });
 
 describe("branch name generation", () => {
@@ -57,7 +108,11 @@ describe("branch name generation", () => {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
-    return `${branchType}/${ticketPart}_${kebab}`;
+    return formatBranchName(SCRUM_PRESET.branchFormat, {
+      type: branchType,
+      ticket: ticketPart,
+      description: kebab,
+    });
   }
 
   it("generates branch with issue number", () => {
@@ -83,6 +138,30 @@ describe("branch name generation", () => {
   it("trims leading/trailing dashes from description", () => {
     const branch = generateBranchName("feat", "1", "---test feature---");
     expect(branch).toBe("feat/#1_test-feature");
+  });
+});
+
+describe("simple preset branch generation", () => {
+  function generateSimpleBranchName(branchType: string, description: string): string {
+    const kebab = description
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    return formatBranchName(SIMPLE_PRESET.branchFormat, {
+      type: branchType,
+      description: kebab,
+    });
+  }
+
+  it("generates branch without ticket", () => {
+    const branch = generateSimpleBranchName("feat", "Add login feature");
+    expect(branch).toBe("feat/add-login-feature");
+  });
+
+  it("generates fix branch without ticket", () => {
+    const branch = generateSimpleBranchName("fix", "Bug fix");
+    expect(branch).toBe("fix/bug-fix");
   });
 });
 

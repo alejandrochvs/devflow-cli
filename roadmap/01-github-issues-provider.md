@@ -1,8 +1,8 @@
 # GitHub Issues Provider (Built-in)
 
 ## Priority: High
-## Status: Planned
-## Release: Next Minor (0.5.0)
+## Status: Done
+## Release: 0.8.0
 
 ## Overview
 

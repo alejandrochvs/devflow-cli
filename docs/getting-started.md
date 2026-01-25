@@ -22,13 +22,23 @@ npx devflow init
 
 The wizard walks you through:
 
-1. **Ticket base URL** — for linking tickets in PRs
-2. **Scopes** — add project-specific scopes (or use defaults)
-3. **PR checklist** — customize or use defaults
-4. **package.json scripts** — auto-adds `commit`, `branch`, `pr` scripts
-5. **Commitlint** — creates config with the devflow parser preset
-6. **Husky** — installs and creates `commit-msg` hook + optional `pre-push` hook
-7. **CI workflow** — optionally generates `.github/workflows/ci.yml`
+1. **Workflow preset** — choose Scrum, Kanban, Simple, or Custom
+2. **Ticket base URL** — for linking tickets in PRs (skipped for Simple preset)
+3. **Scopes** — add project-specific scopes (or use defaults)
+4. **PR checklist** — customize or use defaults
+5. **package.json scripts** — auto-adds `commit`, `branch`, `pr` scripts
+6. **Commitlint** — creates config with the devflow parser preset
+7. **Husky** — installs and creates `commit-msg` hook + optional `pre-push` hook
+8. **CI workflow** — optionally generates `.github/workflows/ci.yml`
+
+### Presets
+
+| Preset | Best For |
+|--------|----------|
+| **Scrum** | Teams using Agile/Scrum with user stories and acceptance criteria |
+| **Kanban** | Flow-based workflows with simpler issue types |
+| **Simple** | Personal projects or small teams (no ticket numbers required) |
+| **Custom** | Full control over all configuration options |
 
 ## Quick Start
 

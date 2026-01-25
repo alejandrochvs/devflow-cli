@@ -66,3 +66,76 @@ devflow checks for newer versions on npm once every 24 hours and displays a non-
 ```
 ─ Update available: 0.2.0 → 0.3.0 (npm update @alejandrochaves/devflow-cli) ─
 ```
+
+## AI Agents
+
+Help AI coding assistants (Claude Code, Cursor, GitHub Copilot, etc.) understand how to use devflow by adding instruction files to your project.
+
+### Claude Code
+
+Create a `CLAUDE.md` in your project root:
+
+```markdown
+# Claude Code Instructions
+
+## Git Workflow
+
+Use devflow for all git operations:
+- `devflow branch` - Create branches
+- `devflow commit` - Make commits
+- `devflow pr` - Create/update PRs
+
+## Commit Format
+
+This project uses: `{type}[{ticket}]({scope}): {message}`
+
+## Quick Commands
+
+| Task | Command |
+|------|---------|
+| New branch | `devflow branch` |
+| Commit | `devflow commit -m "message"` |
+| Create PR | `devflow pr` |
+| Check status | `devflow status` |
+```
+
+### Cursor / Generic AI Agents
+
+Create `.devflow/AI_INSTRUCTIONS.md` with detailed command reference:
+
+```markdown
+# DevFlow CLI - AI Agent Instructions
+
+## Commands
+
+### devflow branch
+Create branches with consistent naming.
+Format: `{type}/{ticket}_{description}`
+
+### devflow commit
+Create conventional commits.
+Format: `{type}[{ticket}]({scope}): {message}`
+
+### devflow pr
+Create or update pull requests with structured body.
+
+## Workflow
+
+1. `devflow branch` - Start new work
+2. `devflow commit` - Commit changes
+3. `devflow pr` - Open PR when ready
+```
+
+### Cursor Rules
+
+Create `.cursorrules` for Cursor AI:
+
+```
+When working with git in this project:
+- Use `devflow branch` instead of `git checkout -b`
+- Use `devflow commit` instead of `git commit`
+- Use `devflow pr` instead of `gh pr create`
+- Always use --dry-run first if uncertain
+```
+
+These files help AI agents maintain consistent workflows and commit conventions across your team.

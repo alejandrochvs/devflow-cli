@@ -55,6 +55,45 @@ describe("parseBranch", () => {
       description: "bug fix",
     });
   });
+
+  // Tests with custom formats
+  describe("with custom format", () => {
+    it("parses simple format without ticket", () => {
+      const result = parseBranch("feat/add-login", "{type}/{description}");
+      expect(result).toEqual({
+        type: "feat",
+        ticket: "UNTRACKED",
+        description: "add login",
+      });
+    });
+
+    it("parses standard format with ticket", () => {
+      const result = parseBranch("fix/BUG-42_fix-crash", "{type}/{ticket}_{description}");
+      expect(result).toEqual({
+        type: "fix",
+        ticket: "BUG-42",
+        description: "fix crash",
+      });
+    });
+
+    it("returns UNTRACKED when simple format branch doesn't match", () => {
+      const result = parseBranch("main", "{type}/{description}");
+      expect(result).toEqual({
+        type: undefined,
+        ticket: "UNTRACKED",
+        description: "main",
+      });
+    });
+
+    it("handles issue number format like #123", () => {
+      const result = parseBranch("feat/#123_add-feature", "{type}/{ticket}_{description}");
+      expect(result).toEqual({
+        type: "feat",
+        ticket: "#123",
+        description: "add feature",
+      });
+    });
+  });
 });
 
 describe("getScopesFromCommits", () => {

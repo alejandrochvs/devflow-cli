@@ -1,24 +1,10 @@
 import { select, input, confirm, editor } from "@inquirer/prompts";
 import { execSync } from "child_process";
-import { loadConfig } from "../config.js";
-import { bold, dim, green, cyan, yellow, gray } from "../colors.js";
+import { loadConfig, IssueType, IssueField } from "../config.js";
+import { bold, dim, green, cyan, gray } from "../colors.js";
 import { checkGhInstalled } from "../git.js";
 import { setTestPlan } from "../test-plan.js";
-
-interface IssueType {
-  value: string;
-  label: string;
-  labelColor: string;
-  branchType: string;
-}
-
-const ISSUE_TYPES: IssueType[] = [
-  { value: "user-story", label: "User Story", labelColor: "feature", branchType: "feat" },
-  { value: "bug", label: "Bug", labelColor: "bug", branchType: "fix" },
-  { value: "task", label: "Task", labelColor: "task", branchType: "chore" },
-  { value: "spike", label: "Spike", labelColor: "spike", branchType: "chore" },
-  { value: "tech-debt", label: "Tech Debt", labelColor: "tech-debt", branchType: "refactor" },
-];
+import { formatBranchName } from "./branch.js";
 
 interface IssueData {
   type: IssueType;
@@ -27,235 +13,130 @@ interface IssueData {
   labels: string[];
 }
 
-async function collectUserStory(): Promise<{ title: string; body: string }> {
-  const asA = await input({
-    message: "As a:",
-    validate: (val) => val.trim().length > 0 || "Required",
-  });
-
-  const iWant = await input({
-    message: "I want to:",
-    validate: (val) => val.trim().length > 0 || "Required",
-  });
-
-  const soThat = await input({
-    message: "So that:",
-    validate: (val) => val.trim().length > 0 || "Required",
-  });
-
-  console.log(dim("\nAdd acceptance criteria (one per line). Empty line to finish:\n"));
-  const criteria: string[] = [];
+async function collectList(prompt: string): Promise<string[]> {
+  console.log(dim(`\n${prompt} (one per line). Empty line to finish:\n`));
+  const items: string[] = [];
   let adding = true;
   while (adding) {
-    const criterion = await input({
-      message: `  ${criteria.length + 1}.${criteria.length > 0 ? " (blank to finish)" : ""}`,
+    const item = await input({
+      message: `  ${items.length + 1}.${items.length > 0 ? " (blank to finish)" : ""}`,
     });
-    if (!criterion.trim()) {
+    if (!item.trim()) {
       adding = false;
     } else {
-      criteria.push(criterion.trim());
+      items.push(item.trim());
     }
   }
-
-  const notes = await input({
-    message: "Additional notes (optional):",
-  });
-
-  const title = iWant.trim();
-  const body = `## User Story
-
-**As a** ${asA.trim()}
-**I want to** ${iWant.trim()}
-**So that** ${soThat.trim()}
-
-## Acceptance Criteria
-
-${criteria.map((c) => `- [ ] ${c}`).join("\n")}
-${notes.trim() ? `\n## Notes\n\n${notes.trim()}` : ""}`;
-
-  return { title, body };
+  return items;
 }
 
-async function collectBug(): Promise<{ title: string; body: string }> {
-  const description = await input({
-    message: "What happened?",
-    validate: (val) => val.trim().length > 0 || "Required",
-  });
+async function collectFieldValue(field: IssueField): Promise<string | string[]> {
+  switch (field.type) {
+    case "input":
+      return await input({
+        message: field.prompt,
+        validate: field.required ? (val) => val.trim().length > 0 || "Required" : undefined,
+      });
 
-  const expected = await input({
-    message: "What was expected?",
-    validate: (val) => val.trim().length > 0 || "Required",
-  });
+    case "multiline":
+      return await editor({
+        message: field.prompt,
+        validate: field.required ? (val) => val.trim().length > 0 || "Required" : undefined,
+      });
 
-  console.log(dim("\nSteps to reproduce (one per line). Empty line to finish:\n"));
-  const steps: string[] = [];
-  let adding = true;
-  while (adding) {
-    const step = await input({
-      message: `  ${steps.length + 1}.${steps.length > 0 ? " (blank to finish)" : ""}`,
-    });
-    if (!step.trim()) {
-      adding = false;
-    } else {
-      steps.push(step.trim());
-    }
+    case "select":
+      if (!field.options || field.options.length === 0) {
+        return await input({ message: field.prompt });
+      }
+      return await select({
+        message: field.prompt,
+        choices: field.options.map((opt) => ({ value: opt, name: opt })),
+      });
+
+    case "list":
+      return await collectList(field.prompt);
+
+    default:
+      return await input({ message: field.prompt });
   }
-
-  const environment = await input({
-    message: "Environment (browser, OS, version - optional):",
-  });
-
-  const logs = await input({
-    message: "Error logs or screenshots URL (optional):",
-  });
-
-  const title = description.trim();
-  const body = `## Bug Report
-
-### Description
-${description.trim()}
-
-### Expected Behavior
-${expected.trim()}
-
-### Steps to Reproduce
-${steps.map((s, i) => `${i + 1}. ${s}`).join("\n")}
-${environment.trim() ? `\n### Environment\n${environment.trim()}` : ""}
-${logs.trim() ? `\n### Logs / Screenshots\n${logs.trim()}` : ""}`;
-
-  return { title, body };
 }
 
-async function collectTask(): Promise<{ title: string; body: string }> {
-  const what = await input({
-    message: "What needs to be done?",
-    validate: (val) => val.trim().length > 0 || "Required",
-  });
+function applyTemplate(template: string, values: Record<string, string | string[]>): string {
+  let result = template;
 
-  const why = await input({
-    message: "Why is this needed?",
-  });
-
-  console.log(dim("\nDone criteria (one per line). Empty line to finish:\n"));
-  const criteria: string[] = [];
-  let adding = true;
-  while (adding) {
-    const criterion = await input({
-      message: `  ${criteria.length + 1}.${criteria.length > 0 ? " (blank to finish)" : ""}`,
-    });
-    if (!criterion.trim()) {
-      adding = false;
-    } else {
-      criteria.push(criterion.trim());
+  // Handle conditional sections: {field:section:Title}
+  // These only appear if the field has a value
+  const sectionRegex = /\{(\w+):section:([^}]+)\}/g;
+  result = result.replace(sectionRegex, (_, fieldName, sectionTitle) => {
+    const value = values[fieldName];
+    if (!value || (Array.isArray(value) && value.length === 0) || (typeof value === "string" && !value.trim())) {
+      return "";
     }
-  }
-
-  const title = what.trim();
-  const body = `## Task
-
-### Description
-${what.trim()}
-${why.trim() ? `\n### Context\n${why.trim()}` : ""}
-
-### Done Criteria
-
-${criteria.map((c) => `- [ ] ${c}`).join("\n")}`;
-
-  return { title, body };
-}
-
-async function collectSpike(): Promise<{ title: string; body: string }> {
-  const question = await input({
-    message: "What question needs to be answered?",
-    validate: (val) => val.trim().length > 0 || "Required",
+    if (Array.isArray(value)) {
+      return `\n### ${sectionTitle}\n${value.map((v, i) => `${i + 1}. ${v}`).join("\n")}`;
+    }
+    return `\n### ${sectionTitle}\n${value}`;
   });
 
-  const timebox = await select({
-    message: "Timebox:",
-    choices: [
-      { value: "2 hours", name: "2 hours" },
-      { value: "4 hours", name: "4 hours" },
-      { value: "1 day", name: "1 day" },
-      { value: "2 days", name: "2 days" },
-    ],
+  // Handle list as checkboxes: {field:checkbox}
+  const checkboxRegex = /\{(\w+):checkbox\}/g;
+  result = result.replace(checkboxRegex, (_, fieldName) => {
+    const value = values[fieldName];
+    if (!value || (Array.isArray(value) && value.length === 0)) {
+      return "";
+    }
+    if (Array.isArray(value)) {
+      return value.map((v) => `- [ ] ${v}`).join("\n");
+    }
+    return `- [ ] ${value}`;
   });
 
-  const output = await select({
-    message: "Expected output:",
-    choices: [
-      { value: "Document with findings", name: "Document with findings" },
-      { value: "Proof of concept", name: "Proof of concept" },
-      { value: "Recommendation", name: "Recommendation" },
-      { value: "Prototype", name: "Prototype" },
-    ],
+  // Handle list as numbered: {field:numbered}
+  const numberedRegex = /\{(\w+):numbered\}/g;
+  result = result.replace(numberedRegex, (_, fieldName) => {
+    const value = values[fieldName];
+    if (!value || (Array.isArray(value) && value.length === 0)) {
+      return "";
+    }
+    if (Array.isArray(value)) {
+      return value.map((v, i) => `${i + 1}. ${v}`).join("\n");
+    }
+    return `1. ${value}`;
   });
 
-  const context = await input({
-    message: "Background context (optional):",
+  // Handle simple placeholders: {field}
+  const simpleRegex = /\{(\w+)\}/g;
+  result = result.replace(simpleRegex, (_, fieldName) => {
+    const value = values[fieldName];
+    if (value === undefined || value === null) return "";
+    if (Array.isArray(value)) {
+      return value.join("\n");
+    }
+    return String(value);
   });
 
-  const title = question.trim();
-  const body = `## Spike
+  // Clean up multiple blank lines
+  result = result.replace(/\n{3,}/g, "\n\n").trim();
 
-### Question to Answer
-${question.trim()}
-
-### Timebox
-${timebox}
-
-### Expected Output
-${output}
-${context.trim() ? `\n### Background Context\n${context.trim()}` : ""}
-
-### Findings
-_To be filled after investigation_`;
-
-  return { title, body };
-}
-
-async function collectTechDebt(): Promise<{ title: string; body: string }> {
-  const what = await input({
-    message: "What technical debt needs to be addressed?",
-    validate: (val) => val.trim().length > 0 || "Required",
-  });
-
-  const impact = await input({
-    message: "Why does it matter? (impact on codebase/team)",
-    validate: (val) => val.trim().length > 0 || "Required",
-  });
-
-  const approach = await input({
-    message: "Proposed approach (optional):",
-  });
-
-  const title = what.trim();
-  const body = `## Tech Debt
-
-### Description
-${what.trim()}
-
-### Impact
-${impact.trim()}
-${approach.trim() ? `\n### Proposed Approach\n${approach.trim()}` : ""}`;
-
-  return { title, body };
+  return result;
 }
 
 async function collectIssueData(issueType: IssueType): Promise<{ title: string; body: string }> {
-  switch (issueType.value) {
-    case "user-story":
-      return collectUserStory();
-    case "bug":
-      return collectBug();
-    case "task":
-      return collectTask();
-    case "spike":
-      return collectSpike();
-    case "tech-debt":
-      return collectTechDebt();
-    default:
-      throw new Error(`Unknown issue type: ${issueType.value}`);
+  const values: Record<string, string | string[]> = {};
+
+  for (const field of issueType.fields) {
+    values[field.name] = await collectFieldValue(field);
   }
+
+  // Apply template with collected values
+  const body = applyTemplate(issueType.template, values);
+
+  // Determine title: use first required field or first field
+  const titleField = issueType.fields.find((f) => f.required) || issueType.fields[0];
+  const titleValue = values[titleField?.name || ""];
+  const title = Array.isArray(titleValue) ? titleValue[0] || "" : String(titleValue || "").trim();
+
+  return { title, body };
 }
 
 function formatIssuePreview(data: IssueData): string {
@@ -279,13 +160,15 @@ export async function issueCommand(options: { dryRun?: boolean } = {}): Promise<
   try {
     checkGhInstalled();
     const config = loadConfig();
+    const issueTypes = config.issueTypes;
+    const branchFormat = config.branchFormat;
 
     // Select issue type
     const issueType = await select({
       message: "Select issue type:",
-      choices: ISSUE_TYPES.map((t) => ({
+      choices: issueTypes.map((t) => ({
         value: t,
-        name: `${t.label}`,
+        name: t.label,
       })),
     });
 
@@ -351,13 +234,19 @@ export async function issueCommand(options: { dryRun?: boolean } = {}): Promise<
         validate: (val) => val.trim().length > 0 || "Description is required",
       });
 
-      const ticketPart = issueNumber ? `#${issueNumber}` : "UNTRACKED";
       const kebab = description
         .trim()
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
-      const branchName = `${issueType.branchType}/${ticketPart}_${kebab}`;
+
+      // Use configurable branch format
+      const ticketPart = issueNumber ? `#${issueNumber}` : "UNTRACKED";
+      const branchName = formatBranchName(branchFormat, {
+        type: issueType.branchType,
+        ticket: ticketPart,
+        description: kebab,
+      });
 
       console.log(`\n${dim("Branch:")} ${cyan(branchName)}`);
 
@@ -370,8 +259,10 @@ export async function issueCommand(options: { dryRun?: boolean } = {}): Promise<
         execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
         console.log(green(`✓ Branch created: ${branchName}`));
 
-        // Offer test plan for user stories and bugs
-        if (issueType.value === "user-story" || issueType.value === "bug") {
+        // Offer test plan for feature-like issues (user-story, feature) and bugs
+        const isFeatureType = issueType.value === "user-story" || issueType.value === "feature";
+        const isBugType = issueType.value === "bug";
+        if (isFeatureType || isBugType) {
           const addTestPlan = await confirm({
             message: "Add test plan steps?",
             default: false,

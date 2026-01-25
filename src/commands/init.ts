@@ -1,7 +1,8 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { resolve } from "path";
-import { confirm, input } from "@inquirer/prompts";
+import { confirm, input, select } from "@inquirer/prompts";
 import { execSync } from "child_process";
+import { PRESETS, PresetType } from "../config.js";
 
 interface Scope {
   value: string;
@@ -47,10 +48,35 @@ export async function initCommand(): Promise<void> {
 
     console.log("\n  devflow setup\n");
 
-    // 1. Ticket base URL
-    const ticketBaseUrl = await input({
-      message: "Ticket base URL (e.g., https://github.com/org/repo/issues):",
+    // 0. Preset selection
+    const preset = await select<PresetType>({
+      message: "Select a workflow preset:",
+      choices: [
+        { value: "scrum" as PresetType, name: "Scrum - User stories, sprints, acceptance criteria" },
+        { value: "kanban" as PresetType, name: "Kanban - Simple flow-based workflow" },
+        { value: "simple" as PresetType, name: "Simple - Minimal configuration, no ticket required" },
+        { value: "custom" as PresetType, name: "Custom - Configure everything manually" },
+      ],
     });
+
+    const presetConfig = PRESETS[preset];
+    console.log("");
+
+    // 1. Ticket base URL (skip for simple preset since no tickets)
+    let ticketBaseUrl = "";
+    let useGitHubIssues = false;
+
+    if (preset !== "simple") {
+      ticketBaseUrl = await input({
+        message: "Ticket base URL (e.g., https://github.com/org/repo/issues):",
+      });
+
+      // 1b. GitHub Issues integration
+      useGitHubIssues = await confirm({
+        message: "Use GitHub Issues for ticket tracking? (enables issue picker in branch command)",
+        default: ticketBaseUrl.includes("github.com"),
+      });
+    }
 
     // 2. Scopes
     console.log("\nLet's define your project scopes for commits.");
@@ -120,11 +146,25 @@ export async function initCommand(): Promise<void> {
 
     // Write .devflow.json
     const config: Record<string, unknown> = {
+      preset,
+      branchFormat: presetConfig.branchFormat,
       scopes,
       checklist,
     };
+
     if (ticketBaseUrl.trim()) {
       config.ticketBaseUrl = ticketBaseUrl.trim();
+    }
+
+    // Add ticket provider if GitHub Issues is enabled
+    if (useGitHubIssues) {
+      config.ticketProvider = { type: "github" };
+    }
+
+    // Only include issueTypes and prTemplate for custom preset or if user wants to customize
+    if (preset === "custom") {
+      config.issueTypes = presetConfig.issueTypes;
+      config.prTemplate = presetConfig.prTemplate;
     }
 
     writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
