@@ -4,6 +4,14 @@
 
 
 
+
+## [1.3.1] - 2026-01-25
+
+### Documentation
+
+- update CLAUDE.md with issues command
+- add documentation and tests for issues command
+
 ## [1.3.0] - 2026-01-25
 
 ### Features
