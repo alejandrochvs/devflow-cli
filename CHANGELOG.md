@@ -5,6 +5,13 @@
 
 
 
+
+## [1.3.2] - 2026-01-25
+
+### Documentation
+
+- strengthen issue-first workflow in AI instructions
+
 ## [1.3.1] - 2026-01-25
 
 ### Documentation
