@@ -36,3 +36,9 @@ features:
     title: Extensible
     details: Plugin system for custom commands. Auto-discovers devflow-plugin-* packages or configure explicitly.
 ---
+
+<div style="display: flex; justify-content: center; gap: 8px; margin-top: 24px;">
+  <a href="https://www.npmjs.com/package/@alejandrochaves/devflow-cli"><img src="https://img.shields.io/npm/dm/@alejandrochaves/devflow-cli" alt="npm downloads"></a>
+  <a href="https://www.npmjs.com/package/@alejandrochaves/devflow-cli"><img src="https://img.shields.io/npm/v/@alejandrochaves/devflow-cli" alt="npm version"></a>
+  <a href="https://github.com/alejandrochvs/devflow-cli"><img src="https://img.shields.io/github/stars/alejandrochvs/devflow-cli" alt="GitHub stars"></a>
+</div>
