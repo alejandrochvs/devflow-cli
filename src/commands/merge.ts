@@ -16,7 +16,13 @@ function getPrForBranch(): { number: number; url: string; title: string; state: 
   }
 }
 
-export async function mergeCommand(options: { dryRun?: boolean } = {}): Promise<void> {
+export interface MergeOptions {
+  dryRun?: boolean;
+  method?: string;
+  yes?: boolean;
+}
+
+export async function mergeCommand(options: MergeOptions = {}): Promise<void> {
   try {
     checkGhInstalled();
 
@@ -39,33 +45,52 @@ export async function mergeCommand(options: { dryRun?: boolean } = {}): Promise<
     console.log(`${dim("Branch:")} ${cyan(branch)}`);
     console.log(`${dim("URL:")}    ${dim(pr.url)}\n`);
 
-    const method = await select({
-      message: "Merge method:",
-      choices: [
-        { value: "squash", name: "Squash and merge (recommended)" },
-        { value: "merge", name: "Create a merge commit" },
-        { value: "rebase", name: "Rebase and merge" },
-      ],
-    });
+    // Get method from flag or prompt
+    let method: string;
+    if (options.method) {
+      if (!["squash", "merge", "rebase"].includes(options.method)) {
+        console.error(`Invalid merge method: ${options.method}. Use: squash, merge, or rebase`);
+        process.exit(1);
+      }
+      method = options.method;
+    } else {
+      method = await select({
+        message: "Merge method:",
+        choices: [
+          { value: "squash", name: "Squash and merge (recommended)" },
+          { value: "merge", name: "Create a merge commit" },
+          { value: "rebase", name: "Rebase and merge" },
+        ],
+      });
+    }
 
-    const deleteBranch = await confirm({
-      message: "Delete branch after merge?",
-      default: true,
-    });
+    // Get delete branch preference from prompt (or default to true with --yes)
+    let deleteBranch: boolean;
+    if (options.yes) {
+      deleteBranch = true;
+    } else {
+      deleteBranch = await confirm({
+        message: "Delete branch after merge?",
+        default: true,
+      });
+    }
 
     if (options.dryRun) {
       console.log(dim(`[dry-run] Would ${method} PR #${pr.number}${deleteBranch ? " and delete branch" : ""}`));
       return;
     }
 
-    const confirmed = await confirm({
-      message: `${method.charAt(0).toUpperCase() + method.slice(1)} PR #${pr.number}?`,
-      default: true,
-    });
+    // Confirm (skip if --yes)
+    if (!options.yes) {
+      const confirmed = await confirm({
+        message: `${method.charAt(0).toUpperCase() + method.slice(1)} PR #${pr.number}?`,
+        default: true,
+      });
 
-    if (!confirmed) {
-      console.log("Aborted.");
-      return;
+      if (!confirmed) {
+        console.log("Aborted.");
+        return;
+      }
     }
 
     const deleteFlag = deleteBranch ? " --delete-branch" : "";

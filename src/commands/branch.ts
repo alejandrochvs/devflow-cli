@@ -39,7 +39,16 @@ function formatIssueChoice(ticket: Ticket): { value: Ticket; name: string } {
   };
 }
 
-export async function branchCommand(options: { dryRun?: boolean } = {}): Promise<void> {
+export interface BranchOptions {
+  dryRun?: boolean;
+  type?: string;
+  ticket?: string;
+  description?: string;
+  testPlan?: string;
+  yes?: boolean;
+}
+
+export async function branchCommand(options: BranchOptions = {}): Promise<void> {
   try {
     const config = loadConfig();
     const branchFormat = config.branchFormat;
@@ -53,8 +62,11 @@ export async function branchCommand(options: { dryRun?: boolean } = {}): Promise
     let inferredType: string | undefined;
     let suggestedDescription: string | undefined;
 
-    // If provider is configured and format needs ticket, offer issue picker
-    if (ticketProvider && needsTicket) {
+    // Use ticket from flag if provided
+    if (options.ticket !== undefined) {
+      ticket = options.ticket.trim() || "UNTRACKED";
+    } else if (ticketProvider && needsTicket) {
+      // If provider is configured and format needs ticket, offer issue picker
       const ticketMethod = await select({
         message: "How do you want to select the ticket?",
         choices: [
@@ -103,22 +115,32 @@ export async function branchCommand(options: { dryRun?: boolean } = {}): Promise
       ticket = ticket.trim() || "UNTRACKED";
     }
 
-    // Select branch type (with inferred default if available)
-    const typeChoices = config.branchTypes.map((t) => ({ value: t, name: t }));
-    const defaultType = inferredType && config.branchTypes.includes(inferredType) ? inferredType : undefined;
+    // Get type from flag or prompt
+    let type: string;
+    if (options.type) {
+      type = options.type;
+    } else {
+      const typeChoices = config.branchTypes.map((t) => ({ value: t, name: t }));
+      const defaultType = inferredType && config.branchTypes.includes(inferredType) ? inferredType : undefined;
 
-    const type = await select({
-      message: "Select branch type:",
-      choices: typeChoices,
-      default: defaultType,
-    });
+      type = await select({
+        message: "Select branch type:",
+        choices: typeChoices,
+        default: defaultType,
+      });
+    }
 
-    // Get description (with suggested default if available)
-    const description = await input({
-      message: "Short description:",
-      default: suggestedDescription,
-      validate: (val) => val.trim().length > 0 || "Description is required",
-    });
+    // Get description from flag or prompt
+    let description: string;
+    if (options.description) {
+      description = options.description;
+    } else {
+      description = await input({
+        message: "Short description:",
+        default: suggestedDescription,
+        validate: (val) => val.trim().length > 0 || "Description is required",
+      });
+    }
 
     const kebab = toKebabCase(description);
 
@@ -137,43 +159,54 @@ export async function branchCommand(options: { dryRun?: boolean } = {}): Promise
       return;
     }
 
-    const confirmed = await confirm({
-      message: "Create this branch?",
-      default: true,
-    });
+    // Confirm (skip if --yes)
+    if (!options.yes) {
+      const confirmed = await confirm({
+        message: "Create this branch?",
+        default: true,
+      });
 
-    if (!confirmed) {
-      console.log("Aborted.");
-      process.exit(0);
+      if (!confirmed) {
+        console.log("Aborted.");
+        process.exit(0);
+      }
     }
 
     execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
     console.log(green(`✓ Branch created: ${branchName}`));
 
-    // Optional test plan
-    const addTestPlan = await confirm({
-      message: "Add test plan steps for this branch?",
-      default: false,
-    });
-
-    if (addTestPlan) {
-      const steps: string[] = [];
-      console.log(dim("\nAdd testing steps one at a time. Press Enter with empty text to finish.\n"));
-      let adding = true;
-      while (adding) {
-        const step = await input({
-          message: `Step ${steps.length + 1}${steps.length > 0 ? " (blank to finish)" : ""}:`,
-        });
-        if (!step.trim()) {
-          adding = false;
-        } else {
-          steps.push(step.trim());
-        }
-      }
+    // Handle test plan from flag or prompt
+    if (options.testPlan) {
+      const steps = options.testPlan.split("|").map((s) => s.trim()).filter(Boolean);
       if (steps.length > 0) {
         setTestPlan(branchName, steps);
         console.log(green(`✓ Saved ${steps.length} test plan step${steps.length > 1 ? "s" : ""}`));
-        console.log(dim("  Edit later with: devflow test-plan"));
+      }
+    } else if (!options.yes) {
+      const addTestPlan = await confirm({
+        message: "Add test plan steps for this branch?",
+        default: false,
+      });
+
+      if (addTestPlan) {
+        const steps: string[] = [];
+        console.log(dim("\nAdd testing steps one at a time. Press Enter with empty text to finish.\n"));
+        let adding = true;
+        while (adding) {
+          const step = await input({
+            message: `Step ${steps.length + 1}${steps.length > 0 ? " (blank to finish)" : ""}:`,
+          });
+          if (!step.trim()) {
+            adding = false;
+          } else {
+            steps.push(step.trim());
+          }
+        }
+        if (steps.length > 0) {
+          setTestPlan(branchName, steps);
+          console.log(green(`✓ Saved ${steps.length} test plan step${steps.length > 1 ? "s" : ""}`));
+          console.log(dim("  Edit later with: devflow test-plan"));
+        }
       }
     }
   } catch (error) {

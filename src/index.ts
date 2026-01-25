@@ -45,6 +45,11 @@ program
   .alias("b")
   .description("Create a new branch with type/ticket/description format")
   .option("--dry-run", "Preview without executing git commands")
+  .option("--type <type>", "Branch type (feat, fix, chore, etc.)")
+  .option("--ticket <ticket>", "Ticket number (use UNTRACKED to skip)")
+  .option("-d, --description <desc>", "Branch description")
+  .option("--test-plan <steps>", "Pipe-separated test plan steps")
+  .option("--yes", "Skip confirmation prompts")
   .action((opts) => branchCommand(opts));
 
 program
@@ -52,6 +57,15 @@ program
   .alias("c")
   .description("Create a conventional commit with guided prompts")
   .option("--dry-run", "Preview without executing git commands")
+  .option("--type <type>", "Commit type (feat, fix, chore, etc.)")
+  .option("--scope <scope>", "Commit scope")
+  .option("-m, --message <message>", "Commit message")
+  .option("--body <body>", "Optional longer description")
+  .option("--breaking", "Mark as breaking change")
+  .option("--breaking-desc <desc>", "Breaking change description")
+  .option("--all", "Stage all changes")
+  .option("--files <files>", "Comma-separated files to stage")
+  .option("--yes", "Skip confirmation prompts")
   .action((opts) => commitCommand(opts));
 
 program
@@ -59,6 +73,11 @@ program
   .alias("p")
   .description("Create or update a pull request with auto-filled template")
   .option("--dry-run", "Preview without executing git commands")
+  .option("--title <title>", "PR title")
+  .option("--summary <summary>", "PR summary/body text")
+  .option("--base <branch>", "Base branch")
+  .option("--yes", "Skip confirmation prompts")
+  .option("--ready", "Create as ready (not draft)")
   .action((opts) => prCommand(opts));
 
 program
@@ -66,6 +85,11 @@ program
   .alias("a")
   .description("Amend the last commit with guided prompts")
   .option("--dry-run", "Preview without executing git commands")
+  .option("--type <type>", "New commit type")
+  .option("--scope <scope>", "New commit scope")
+  .option("-m, --message <message>", "New commit message")
+  .option("--breaking", "Mark as breaking change")
+  .option("--yes", "Skip confirmation prompts")
   .action((opts) => amendCommand(opts));
 
 program
@@ -73,6 +97,7 @@ program
   .alias("u")
   .description("Undo the last commit (keeps changes staged)")
   .option("--dry-run", "Preview without executing git commands")
+  .option("--yes", "Skip confirmation prompt")
   .action((opts) => undoCommand(opts));
 
 program
@@ -80,6 +105,11 @@ program
   .alias("f")
   .description("Create a fixup commit targeting a previous commit")
   .option("--dry-run", "Preview without executing git commands")
+  .option("--target <commit>", "Target commit hash or reference")
+  .option("--all", "Stage all changes")
+  .option("--files <files>", "Comma-separated files to stage")
+  .option("--auto-squash", "Auto-rebase with --autosquash")
+  .option("--yes", "Skip confirmation prompts")
   .action((opts) => fixupCommand(opts));
 
 program
@@ -87,19 +117,27 @@ program
   .alias("m")
   .description("Merge the current branch PR with squash/merge/rebase")
   .option("--dry-run", "Preview without executing git commands")
+  .option("--method <method>", "Merge method: squash, merge, or rebase")
+  .option("--yes", "Skip confirmation prompts")
   .action((opts) => mergeCommand(opts));
 
 program
   .command("release")
   .alias("rel")
   .description("Create a release with version bump, changelog, tag, and GitHub release")
-  .action(releaseCommand);
+  .option("--bump <type>", "Version bump type: patch, minor, or major")
+  .option("--version <version>", "Explicit version number")
+  .option("--yes", "Skip confirmation prompts")
+  .action((opts) => releaseCommand(opts));
 
 program
   .command("review")
   .alias("rv")
   .description("List and interact with open pull requests")
-  .action(reviewCommand);
+  .option("--pr <number>", "PR number to review")
+  .option("--action <action>", "Action: checkout, approve, comment, request-changes, view")
+  .option("--comment <text>", "Comment text (for comment/request-changes)")
+  .action((opts) => reviewCommand(opts));
 
 program
   .command("comments")
@@ -115,19 +153,35 @@ program
   .alias("i")
   .description("Create a GitHub issue with Scrum templates (story, bug, task, spike, tech-debt)")
   .option("--dry-run", "Preview without creating the issue")
+  .option("--type <type>", "Issue type (user-story, bug, task, spike, tech-debt)")
+  .option("--title <title>", "Issue title")
+  .option("--body <body>", "Issue body (raw markdown)")
+  .option("--json <data>", "JSON string with template field values")
+  .option("--create-branch", "Auto-create branch after issue creation")
+  .option("--branch-desc <desc>", "Branch description (for --create-branch)")
+  .option("--yes", "Skip confirmation prompts")
   .action((opts) => issueCommand(opts));
 
 program
   .command("stash")
   .alias("st")
   .description("Save, pop, apply, or drop named stashes")
-  .action(stashCommand);
+  .option("--action <action>", "Action: save, pop, apply, drop, show")
+  .option("--message <msg>", "Stash message (for save)")
+  .option("--index <n>", "Stash index (for pop/apply/drop/show)")
+  .option("--include-untracked", "Include untracked files (for save)")
+  .option("--yes", "Skip confirmation prompts")
+  .action((opts) => stashCommand(opts));
 
 program
   .command("worktree")
   .alias("wt")
   .description("Manage git worktrees for parallel branch work")
-  .action(worktreeCommand);
+  .option("--action <action>", "Action: add, remove, list")
+  .option("--branch <branch>", "Branch name (for add)")
+  .option("--path <path>", "Directory path (for add)")
+  .option("--yes", "Skip confirmation prompts")
+  .action((opts) => worktreeCommand(opts));
 
 program
   .command("log")
@@ -147,18 +201,28 @@ program
   .command("test-plan")
   .alias("tp")
   .description("View or edit the test plan for the current branch")
-  .action(testPlanCommand);
+  .option("--add <steps>", "Pipe-separated steps to add")
+  .option("--replace <steps>", "Replace all steps with these (pipe-separated)")
+  .option("--clear", "Clear all steps")
+  .option("--show", "Show current steps (default if no other flags)")
+  .action((opts) => testPlanCommand(opts));
 
 program
   .command("changelog")
   .description("Generate a changelog from conventional commits since last tag")
   .option("--dry-run", "Preview without writing to file")
+  .option("--version <version>", "Version number for the changelog")
+  .option("--yes", "Skip confirmation prompt")
   .action((opts) => changelogCommand(opts));
 
 program
   .command("cleanup")
   .description("Delete local branches that have been merged or whose remote is gone")
   .option("--dry-run", "Preview without deleting branches")
+  .option("--all", "Delete all eligible branches")
+  .option("--branches <list>", "Comma-separated branch names to delete")
+  .option("--force", "Force delete unmerged branches")
+  .option("--yes", "Skip confirmation prompts")
   .action((opts) => cleanupCommand(opts));
 
 program

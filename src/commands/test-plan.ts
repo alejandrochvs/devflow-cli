@@ -3,65 +3,100 @@ import { getBranch } from "../git.js";
 import { getTestPlan, setTestPlan, deleteTestPlan } from "../test-plan.js";
 import { bold, dim, green, yellow, cyan } from "../colors.js";
 
-export async function testPlanCommand(): Promise<void> {
+export interface TestPlanOptions {
+  add?: string;
+  replace?: string;
+  clear?: boolean;
+  show?: boolean;
+}
+
+export async function testPlanCommand(options: TestPlanOptions = {}): Promise<void> {
   try {
     const branch = getBranch();
     const steps = getTestPlan(branch);
 
-    if (steps.length > 0) {
-      console.log(`\n${dim("───")} ${bold("Test Plan")} ${dim("for")} ${cyan(branch)} ${dim("───")}`);
-      steps.forEach((step, i) => {
-        console.log(`  ${dim(`${i + 1}.`)} ${step}`);
-      });
-      console.log("");
-
-      const action = await select({
-        message: "What would you like to do?",
-        choices: [
-          { value: "add", name: "Add more steps" },
-          { value: "edit", name: "Replace all steps" },
-          { value: "clear", name: "Clear test plan" },
-          { value: "done", name: "Done (keep current)" },
-        ],
-      });
-
-      if (action === "add") {
-        const newSteps = await collectSteps(steps.length);
-        if (newSteps.length > 0) {
-          setTestPlan(branch, [...steps, ...newSteps]);
-          console.log(green(`✓ Added ${newSteps.length} step${newSteps.length > 1 ? "s" : ""} (${steps.length + newSteps.length} total)`));
-        }
-      } else if (action === "edit") {
-        const newSteps = await collectSteps(0);
-        if (newSteps.length > 0) {
-          setTestPlan(branch, newSteps);
-          console.log(green(`✓ Replaced with ${newSteps.length} step${newSteps.length > 1 ? "s" : ""}`));
-        } else {
-          console.log(yellow("No steps entered. Keeping existing plan."));
-        }
-      } else if (action === "clear") {
-        const confirmed = await confirm({
-          message: "Remove all test plan steps?",
-          default: false,
-        });
-        if (confirmed) {
-          deleteTestPlan(branch);
-          console.log(green("✓ Test plan cleared"));
-        }
+    // Handle flag-based operations
+    if (options.add) {
+      const newSteps = options.add.split("|").map((s) => s.trim()).filter(Boolean);
+      if (newSteps.length > 0) {
+        setTestPlan(branch, [...steps, ...newSteps]);
+        console.log(green(`✓ Added ${newSteps.length} step${newSteps.length > 1 ? "s" : ""} (${steps.length + newSteps.length} total)`));
       }
-    } else {
-      console.log(dim(`No test plan for ${branch}\n`));
+      return;
+    }
 
-      const add = await confirm({
-        message: "Add test plan steps?",
-        default: true,
-      });
+    if (options.replace) {
+      const newSteps = options.replace.split("|").map((s) => s.trim()).filter(Boolean);
+      if (newSteps.length > 0) {
+        setTestPlan(branch, newSteps);
+        console.log(green(`✓ Replaced with ${newSteps.length} step${newSteps.length > 1 ? "s" : ""}`));
+      }
+      return;
+    }
 
-      if (add) {
-        const newSteps = await collectSteps(0);
-        if (newSteps.length > 0) {
-          setTestPlan(branch, newSteps);
-          console.log(green(`✓ Saved ${newSteps.length} test plan step${newSteps.length > 1 ? "s" : ""}`));
+    if (options.clear) {
+      deleteTestPlan(branch);
+      console.log(green("✓ Test plan cleared"));
+      return;
+    }
+
+    // Show mode (default or explicit)
+    if (options.show || Object.keys(options).length === 0) {
+      if (steps.length > 0) {
+        console.log(`\n${dim("───")} ${bold("Test Plan")} ${dim("for")} ${cyan(branch)} ${dim("───")}`);
+        steps.forEach((step, i) => {
+          console.log(`  ${dim(`${i + 1}.`)} ${step}`);
+        });
+        console.log("");
+
+        const action = await select({
+          message: "What would you like to do?",
+          choices: [
+            { value: "add", name: "Add more steps" },
+            { value: "edit", name: "Replace all steps" },
+            { value: "clear", name: "Clear test plan" },
+            { value: "done", name: "Done (keep current)" },
+          ],
+        });
+
+        if (action === "add") {
+          const newSteps = await collectSteps(steps.length);
+          if (newSteps.length > 0) {
+            setTestPlan(branch, [...steps, ...newSteps]);
+            console.log(green(`✓ Added ${newSteps.length} step${newSteps.length > 1 ? "s" : ""} (${steps.length + newSteps.length} total)`));
+          }
+        } else if (action === "edit") {
+          const newSteps = await collectSteps(0);
+          if (newSteps.length > 0) {
+            setTestPlan(branch, newSteps);
+            console.log(green(`✓ Replaced with ${newSteps.length} step${newSteps.length > 1 ? "s" : ""}`));
+          } else {
+            console.log(yellow("No steps entered. Keeping existing plan."));
+          }
+        } else if (action === "clear") {
+          const confirmed = await confirm({
+            message: "Remove all test plan steps?",
+            default: false,
+          });
+          if (confirmed) {
+            deleteTestPlan(branch);
+            console.log(green("✓ Test plan cleared"));
+          }
+        }
+      } else {
+        console.log(dim(`No test plan for ${branch}\n`));
+
+        const add = await confirm({
+          message: "Add test plan steps?",
+          default: true,
+        });
+
+        if (add) {
+          const newSteps = await collectSteps(0);
+          if (newSteps.length > 0) {
+            setTestPlan(branch, newSteps);
+            console.log(green(`✓ Saved ${newSteps.length} test plan step${newSteps.length > 1 ? "s" : ""}`));
+          }
         }
       }
     }

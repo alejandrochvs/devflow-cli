@@ -1,0 +1,40 @@
+{
+  "preset": "scrum",
+  "branchFormat": "{type}/{ticket}_{description}",
+  "commitFormat": "{type}[{ticket}]{breaking}({scope}): {message}",
+  "scopes": [
+    {
+      "value": "core",
+      "description": "Core functionality"
+    },
+    {
+      "value": "ui",
+      "description": "UI components"
+    },
+    {
+      "value": "api",
+      "description": "API layer"
+    },
+    {
+      "value": "config",
+      "description": "Configuration"
+    },
+    {
+      "value": "deps",
+      "description": "Dependencies"
+    },
+    {
+      "value": "ci",
+      "description": "CI/CD"
+    }
+  ],
+  "checklist": [
+    "Code follows project conventions",
+    "Self-reviewed the changes",
+    "No new warnings or errors introduced"
+  ],
+  "ticketBaseUrl": "https://github.com/alejandrochvs/devflow-cli/issues",
+  "ticketProvider": {
+    "type": "github"
+  }
+}

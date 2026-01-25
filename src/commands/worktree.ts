@@ -2,6 +2,13 @@ import { select, input, confirm } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { bold, dim, green, cyan, yellow, red } from "../colors.js";
 
+export interface WorktreeOptions {
+  action?: string;
+  branch?: string;
+  path?: string;
+  yes?: boolean;
+}
+
 interface Worktree {
   path: string;
   branch: string;
@@ -37,7 +44,7 @@ function getRepoRoot(): string {
   return execSync("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
 }
 
-export async function worktreeCommand(): Promise<void> {
+export async function worktreeCommand(options: WorktreeOptions = {}): Promise<void> {
   try {
     const trees = listWorktrees();
 
@@ -52,27 +59,49 @@ export async function worktreeCommand(): Promise<void> {
       console.log("");
     }
 
-    const action = await select({
-      message: "Action:",
-      choices: [
-        { value: "add", name: "Add a new worktree" },
-        ...(trees.length > 1
-          ? [{ value: "remove", name: "Remove a worktree" }]
-          : []),
-        { value: "done", name: "Done" },
-      ],
-    });
+    // Handle list action (just show and exit)
+    if (options.action === "list") {
+      return;
+    }
+
+    // Get action from flag or prompt
+    let action: string;
+    if (options.action) {
+      if (!["add", "remove", "list"].includes(options.action)) {
+        console.error(`Invalid action: ${options.action}. Use: add, remove, or list`);
+        process.exit(1);
+      }
+      action = options.action;
+    } else {
+      action = await select({
+        message: "Action:",
+        choices: [
+          { value: "add", name: "Add a new worktree" },
+          ...(trees.length > 1
+            ? [{ value: "remove", name: "Remove a worktree" }]
+            : []),
+          { value: "done", name: "Done" },
+        ],
+      });
+    }
 
     if (action === "add") {
-      const branch = await input({
+      // Get branch from flag or prompt
+      const branch = options.branch ?? await input({
         message: "Branch name for new worktree:",
         validate: (val) => val.trim().length > 0 || "Branch name is required",
       });
 
+      if (!branch.trim()) {
+        console.error("Branch name is required.");
+        process.exit(1);
+      }
+
       const root = getRepoRoot();
       const defaultPath = `${root}-${branch.trim().replace(/\//g, "-")}`;
 
-      const path = await input({
+      // Get path from flag or prompt
+      const worktreePath = options.path ?? await input({
         message: "Worktree path:",
         default: defaultPath,
       });
@@ -88,11 +117,11 @@ export async function worktreeCommand(): Promise<void> {
 
       const createFlag = branchExists ? "" : "-b ";
       try {
-        execSync(`git worktree add ${JSON.stringify(path.trim())} ${createFlag}${branch.trim()}`, {
+        execSync(`git worktree add ${JSON.stringify(worktreePath.trim())} ${createFlag}${branch.trim()}`, {
           stdio: "inherit",
         });
-        console.log(green(`✓ Created worktree at ${path.trim()}`));
-        console.log(dim(`  cd ${path.trim()}`));
+        console.log(green(`✓ Created worktree at ${worktreePath.trim()}`));
+        console.log(dim(`  cd ${worktreePath.trim()}`));
       } catch {
         console.log(red("✗ Failed to create worktree"));
       }
@@ -104,15 +133,27 @@ export async function worktreeCommand(): Promise<void> {
         return;
       }
 
-      const selected = await select({
-        message: "Select worktree to remove:",
-        choices: removable.map((t) => ({
-          value: t.path,
-          name: `${t.branch} ${dim(`→ ${t.path}`)}`,
-        })),
-      });
+      // Get path from flag or prompt
+      let selected: string;
+      if (options.path) {
+        const found = removable.find((t) => t.path === options.path);
+        if (!found) {
+          console.error(`Worktree not found: ${options.path}`);
+          process.exit(1);
+        }
+        selected = options.path;
+      } else {
+        selected = await select({
+          message: "Select worktree to remove:",
+          choices: removable.map((t) => ({
+            value: t.path,
+            name: `${t.branch} ${dim(`→ ${t.path}`)}`,
+          })),
+        });
+      }
 
-      const confirmed = await confirm({
+      // Confirm unless --yes
+      const confirmed = options.yes || await confirm({
         message: `Remove worktree at ${selected}?`,
         default: false,
       });
@@ -122,7 +163,7 @@ export async function worktreeCommand(): Promise<void> {
           execSync(`git worktree remove ${JSON.stringify(selected)}`, { stdio: "inherit" });
           console.log(green("✓ Worktree removed"));
         } catch {
-          const force = await confirm({
+          const force = options.yes || await confirm({
             message: "Worktree has changes. Force remove?",
             default: false,
           });

@@ -56,12 +56,25 @@ export function formatCommitMessage(
   return result;
 }
 
-export async function commitCommand(options: { dryRun?: boolean } = {}): Promise<void> {
+export interface CommitOptions {
+  dryRun?: boolean;
+  type?: string;
+  scope?: string;
+  message?: string;
+  body?: string;
+  breaking?: boolean;
+  breakingDesc?: string;
+  all?: boolean;
+  files?: string;
+  yes?: boolean;
+}
+
+export async function commitCommand(options: CommitOptions = {}): Promise<void> {
   try {
     const config = loadConfig();
 
-    // Branch protection
-    if (isProtectedBranch()) {
+    // Branch protection (skip if --yes is provided)
+    if (isProtectedBranch() && !options.yes) {
       const branch = getBranch();
       console.log(yellow(`⚠ You are on ${bold(branch)}. Committing directly to protected branches is not recommended.`));
       const proceed = await confirm({
@@ -71,6 +84,20 @@ export async function commitCommand(options: { dryRun?: boolean } = {}): Promise
       if (!proceed) {
         console.log("Use: devflow branch");
         process.exit(0);
+      }
+    }
+
+    // Stage files if --all or --files provided
+    if (options.all) {
+      if (!options.dryRun) {
+        execSync("git add -A");
+      }
+    } else if (options.files) {
+      const filesToStage = options.files.split(",").map((f) => f.trim());
+      if (!options.dryRun) {
+        for (const file of filesToStage) {
+          execSync(`git add ${JSON.stringify(file)}`);
+        }
       }
     }
 
@@ -91,60 +118,81 @@ export async function commitCommand(options: { dryRun?: boolean } = {}): Promise
 
     let stagedFiles: string[] = staged ? staged.split("\n") : [];
 
-    if (!staged) {
+    // Interactive file staging (only if no files staged and no --all/--files flags)
+    if (!staged && !options.all && !options.files) {
       if (allChanges.length === 1) {
-        const stageIt = await confirm({
-          message: `Stage ${allChanges[0].file}?`,
-          default: true,
-        });
-        if (!stageIt) {
-          console.log("No files staged. Aborting.");
-          process.exit(0);
-        }
-        if (!options.dryRun) {
-          execSync(`git add ${JSON.stringify(allChanges[0].file)}`);
-        }
-        stagedFiles = [allChanges[0].file];
-      } else {
-        const filesToStage = await checkbox({
-          message: "Select files to stage:",
-          choices: [
-            { value: "__ALL__", name: "Stage all" },
-            ...allChanges.map((c) => ({ value: c.file, name: c.label })),
-          ],
-          required: true,
-        });
-
-        if (!options.dryRun) {
-          if (filesToStage.includes("__ALL__")) {
-            execSync("git add -A");
-            stagedFiles = allChanges.map((c) => c.file);
-          } else {
-            for (const file of filesToStage) {
-              execSync(`git add ${JSON.stringify(file)}`);
-            }
-            stagedFiles = filesToStage;
+        if (options.yes) {
+          // Auto-stage single file when --yes
+          if (!options.dryRun) {
+            execSync(`git add ${JSON.stringify(allChanges[0].file)}`);
           }
+          stagedFiles = [allChanges[0].file];
         } else {
-          stagedFiles = filesToStage.includes("__ALL__")
-            ? allChanges.map((c) => c.file)
-            : filesToStage;
+          const stageIt = await confirm({
+            message: `Stage ${allChanges[0].file}?`,
+            default: true,
+          });
+          if (!stageIt) {
+            console.log("No files staged. Aborting.");
+            process.exit(0);
+          }
+          if (!options.dryRun) {
+            execSync(`git add ${JSON.stringify(allChanges[0].file)}`);
+          }
+          stagedFiles = [allChanges[0].file];
+        }
+      } else {
+        if (options.yes) {
+          // Auto-stage all files when --yes
+          if (!options.dryRun) {
+            execSync("git add -A");
+          }
+          stagedFiles = allChanges.map((c) => c.file);
+        } else {
+          const filesToStage = await checkbox({
+            message: "Select files to stage:",
+            choices: [
+              { value: "__ALL__", name: "Stage all" },
+              ...allChanges.map((c) => ({ value: c.file, name: c.label })),
+            ],
+            required: true,
+          });
+
+          if (!options.dryRun) {
+            if (filesToStage.includes("__ALL__")) {
+              execSync("git add -A");
+              stagedFiles = allChanges.map((c) => c.file);
+            } else {
+              for (const file of filesToStage) {
+                execSync(`git add ${JSON.stringify(file)}`);
+              }
+              stagedFiles = filesToStage;
+            }
+          } else {
+            stagedFiles = filesToStage.includes("__ALL__")
+              ? allChanges.map((c) => c.file)
+              : filesToStage;
+          }
         }
       }
-    } else {
+    } else if (staged) {
       console.log(dim("Staged files:"));
       staged.split("\n").forEach((f) => console.log(dim(`  ${f}`)));
       console.log("");
     }
 
-    const type = await select({
+    // Get commit type (from flag or prompt)
+    const type = options.type || await select({
       message: "Select commit type:",
       choices: config.commitTypes.map((t) => ({ value: t.value, name: t.label })),
     });
 
+    // Get scope (from flag or prompt)
     let finalScope: string | undefined;
 
-    if (config.scopes.length > 0) {
+    if (options.scope !== undefined) {
+      finalScope = options.scope;
+    } else if (config.scopes.length > 0) {
       const inferredFromPaths = inferScopeFromPaths(stagedFiles, config.scopes);
       const inferredFromLog = inferScope();
       const inferred = inferredFromPaths || inferredFromLog;
@@ -181,15 +229,29 @@ export async function commitCommand(options: { dryRun?: boolean } = {}): Promise
       });
     }
 
-    const message = await input({
-      message: "Enter commit message:",
-      validate: (val) => val.trim().length > 0 || "Commit message is required",
-    });
+    // Get message (from flag or prompt)
+    let message: string;
+    if (options.message) {
+      message = options.message;
+    } else {
+      message = await input({
+        message: "Enter commit message:",
+        validate: (val) => val.trim().length > 0 || "Commit message is required",
+      });
+    }
 
-    const isBreaking = await confirm({
-      message: "Is this a breaking change?",
-      default: false,
-    });
+    // Get breaking change status (from flag or prompt)
+    let isBreaking: boolean;
+    if (options.breaking !== undefined) {
+      isBreaking = options.breaking;
+    } else if (options.yes) {
+      isBreaking = false;
+    } else {
+      isBreaking = await confirm({
+        message: "Is this a breaking change?",
+        default: false,
+      });
+    }
 
     const ticket = inferTicket();
     const breaking = isBreaking ? "!" : "";
@@ -203,26 +265,34 @@ export async function commitCommand(options: { dryRun?: boolean } = {}): Promise
       message: message.trim(),
     });
 
-    // Optional body
-    const addBody = await confirm({
-      message: "Add a longer description (body)?",
-      default: false,
-    });
-
-    let body = "";
-    if (addBody) {
-      body = await input({
-        message: "Body (longer explanation):",
+    // Get body (from flag or prompt)
+    let body = options.body || "";
+    if (!options.body && !options.yes) {
+      const addBody = await confirm({
+        message: "Add a longer description (body)?",
+        default: false,
       });
+
+      if (addBody) {
+        body = await input({
+          message: "Body (longer explanation):",
+        });
+      }
     }
 
-    // Breaking change footer
+    // Get breaking change description (from flag or prompt)
     let breakingFooter = "";
     if (isBreaking) {
-      breakingFooter = await input({
-        message: "Describe the breaking change:",
-        validate: (val) => val.trim().length > 0 || "Breaking change description is required",
-      });
+      if (options.breakingDesc) {
+        breakingFooter = options.breakingDesc;
+      } else if (options.yes) {
+        console.log(yellow("Warning: Breaking change without description. Use --breaking-desc to provide one."));
+      } else {
+        breakingFooter = await input({
+          message: "Describe the breaking change:",
+          validate: (val) => val.trim().length > 0 || "Breaking change description is required",
+        });
+      }
     }
 
     // Build full message
@@ -245,14 +315,17 @@ export async function commitCommand(options: { dryRun?: boolean } = {}): Promise
       return;
     }
 
-    const confirmed = await confirm({
-      message: "Create this commit?",
-      default: true,
-    });
+    // Confirm (skip if --yes)
+    if (!options.yes) {
+      const confirmed = await confirm({
+        message: "Create this commit?",
+        default: true,
+      });
 
-    if (!confirmed) {
-      console.log("Commit aborted.");
-      process.exit(0);
+      if (!confirmed) {
+        console.log("Commit aborted.");
+        process.exit(0);
+      }
     }
 
     execSync(`git commit -m ${JSON.stringify(fullMessage)}`, {

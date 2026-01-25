@@ -35,26 +35,18 @@ function hasChanges(): boolean {
   }
 }
 
-export async function stashCommand(): Promise<void> {
+export interface StashOptions {
+  action?: string;
+  message?: string;
+  index?: string;
+  includeUntracked?: boolean;
+  yes?: boolean;
+}
+
+export async function stashCommand(options: StashOptions = {}): Promise<void> {
   try {
     const stashes = listStashes();
     const dirty = hasChanges();
-
-    const choices: Array<{ value: string; name: string }> = [];
-    if (dirty) {
-      choices.push({ value: "save", name: "Save current changes to stash" });
-    }
-    if (stashes.length > 0) {
-      choices.push({ value: "pop", name: "Pop a stash (apply and remove)" });
-      choices.push({ value: "apply", name: "Apply a stash (keep in list)" });
-      choices.push({ value: "drop", name: "Drop a stash" });
-      choices.push({ value: "show", name: "Show stash diff" });
-    }
-
-    if (choices.length === 0) {
-      console.log("No stashes and no changes to stash.");
-      return;
-    }
 
     // Show current state
     console.log(`\n${dim("───")} ${bold("Stash")} ${dim("───")}\n`);
@@ -69,24 +61,48 @@ export async function stashCommand(): Promise<void> {
       console.log("");
     }
 
-    const action = await select({
-      message: "Action:",
-      choices,
-    });
+    // Get action from flag or prompt
+    let action: string;
+    if (options.action) {
+      action = options.action;
+    } else {
+      const choices: Array<{ value: string; name: string }> = [];
+      if (dirty) {
+        choices.push({ value: "save", name: "Save current changes to stash" });
+      }
+      if (stashes.length > 0) {
+        choices.push({ value: "pop", name: "Pop a stash (apply and remove)" });
+        choices.push({ value: "apply", name: "Apply a stash (keep in list)" });
+        choices.push({ value: "drop", name: "Drop a stash" });
+        choices.push({ value: "show", name: "Show stash diff" });
+      }
+
+      if (choices.length === 0) {
+        console.log("No stashes and no changes to stash.");
+        return;
+      }
+
+      action = await select({
+        message: "Action:",
+        choices,
+      });
+    }
 
     switch (action) {
       case "save": {
         const branch = getBranch();
         const defaultMsg = `WIP on ${branch}`;
-        const message = await input({
+        const message = options.message || (options.yes ? defaultMsg : await input({
           message: "Stash message:",
           default: defaultMsg,
-        });
+        }));
 
-        const includeUntracked = await confirm({
-          message: "Include untracked files?",
-          default: true,
-        });
+        const includeUntracked = options.includeUntracked !== undefined
+          ? options.includeUntracked
+          : (options.yes ? true : await confirm({
+              message: "Include untracked files?",
+              default: true,
+            }));
 
         const untrackedFlag = includeUntracked ? " --include-untracked" : "";
         execSync(`git stash push -m ${JSON.stringify(message)}${untrackedFlag}`, {
@@ -98,7 +114,12 @@ export async function stashCommand(): Promise<void> {
 
       case "pop":
       case "apply": {
-        const target = await selectStash(stashes, `Select stash to ${action}:`);
+        let target: number | undefined;
+        if (options.index !== undefined) {
+          target = parseInt(options.index, 10);
+        } else {
+          target = await selectStash(stashes, `Select stash to ${action}:`);
+        }
         if (target === undefined) break;
 
         try {
@@ -111,10 +132,15 @@ export async function stashCommand(): Promise<void> {
       }
 
       case "drop": {
-        const target = await selectStash(stashes, "Select stash to drop:");
+        let target: number | undefined;
+        if (options.index !== undefined) {
+          target = parseInt(options.index, 10);
+        } else {
+          target = await selectStash(stashes, "Select stash to drop:");
+        }
         if (target === undefined) break;
 
-        const confirmed = await confirm({
+        const confirmed = options.yes || await confirm({
           message: `Drop stash@{${target}}? This cannot be undone.`,
           default: false,
         });
@@ -126,7 +152,12 @@ export async function stashCommand(): Promise<void> {
       }
 
       case "show": {
-        const target = await selectStash(stashes, "Select stash to show:");
+        let target: number | undefined;
+        if (options.index !== undefined) {
+          target = parseInt(options.index, 10);
+        } else {
+          target = await selectStash(stashes, "Select stash to show:");
+        }
         if (target === undefined) break;
 
         const diff = execSync(`git stash show -p stash@{${target}}`, { encoding: "utf-8" });

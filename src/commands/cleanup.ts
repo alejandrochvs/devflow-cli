@@ -29,7 +29,15 @@ function getGoneBranches(): string[] {
   }
 }
 
-export async function cleanupCommand(options: { dryRun?: boolean } = {}): Promise<void> {
+export interface CleanupOptions {
+  dryRun?: boolean;
+  all?: boolean;
+  branches?: string;
+  force?: boolean;
+  yes?: boolean;
+}
+
+export async function cleanupCommand(options: CleanupOptions = {}): Promise<void> {
   try {
     console.log(`\n${dim("───")} ${bold("Branch Cleanup")} ${dim("───")}\n`);
 
@@ -54,32 +62,40 @@ export async function cleanupCommand(options: { dryRun?: boolean } = {}): Promis
 
     console.log(`Found ${allCandidates.length} branch(es) that can be removed:\n`);
 
-    const choices = allCandidates.map((b) => {
-      const isMerged = merged.includes(b);
-      const isGone = gone.includes(b);
-      const tags = [];
-      if (isMerged) tags.push(green("merged"));
-      if (isGone) tags.push(gray("remote gone"));
-      return {
-        value: b,
-        name: `${b} ${dim(`(${tags.join(", ")})`)}`,
-      };
-    });
+    // Determine branches to delete from flags or prompt
+    let branches: string[];
+    if (options.branches) {
+      branches = options.branches.split(",").map((b) => b.trim());
+    } else if (options.all) {
+      branches = allCandidates;
+    } else {
+      const choices = allCandidates.map((b) => {
+        const isMerged = merged.includes(b);
+        const isGone = gone.includes(b);
+        const tags = [];
+        if (isMerged) tags.push(green("merged"));
+        if (isGone) tags.push(gray("remote gone"));
+        return {
+          value: b,
+          name: `${b} ${dim(`(${tags.join(", ")})`)}`,
+        };
+      });
 
-    const toDelete = await checkbox({
-      message: "Select branches to delete:",
-      choices: [
-        { value: "__ALL__", name: bold("Delete all") },
-        ...choices,
-      ],
-    });
+      const toDelete = await checkbox({
+        message: "Select branches to delete:",
+        choices: [
+          { value: "__ALL__", name: bold("Delete all") },
+          ...choices,
+        ],
+      });
 
-    if (toDelete.length === 0) {
-      console.log("No branches selected.");
-      return;
+      if (toDelete.length === 0) {
+        console.log("No branches selected.");
+        return;
+      }
+
+      branches = toDelete.includes("__ALL__") ? allCandidates : toDelete;
     }
-
-    const branches = toDelete.includes("__ALL__") ? allCandidates : toDelete;
 
     console.log("");
     for (const branch of branches) {
@@ -93,10 +109,17 @@ export async function cleanupCommand(options: { dryRun?: boolean } = {}): Promis
         } catch {
           try {
             // Force delete if not fully merged
-            const force = await confirm({
-              message: `${branch} is not fully merged. Force delete?`,
-              default: false,
-            });
+            let force: boolean;
+            if (options.force) {
+              force = true;
+            } else if (options.yes) {
+              force = false;
+            } else {
+              force = await confirm({
+                message: `${branch} is not fully merged. Force delete?`,
+                default: false,
+              });
+            }
             if (force) {
               execSync(`git branch -D ${branch}`, { stdio: "ignore" });
               deleteTestPlan(branch);

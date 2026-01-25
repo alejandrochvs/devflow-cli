@@ -135,7 +135,16 @@ function buildPrBody(
     .join("\n\n");
 }
 
-export async function prCommand(options: { dryRun?: boolean } = {}): Promise<void> {
+export interface PrOptions {
+  dryRun?: boolean;
+  title?: string;
+  summary?: string;
+  base?: string;
+  yes?: boolean;
+  ready?: boolean;
+}
+
+export async function prCommand(options: PrOptions = {}): Promise<void> {
   try {
     const config = loadConfig();
     checkGhInstalled();
@@ -144,7 +153,7 @@ export async function prCommand(options: { dryRun?: boolean } = {}): Promise<voi
     const { type, ticket, description } = parseBranch(branch);
     const existingPr = getExistingPr();
 
-    if (existingPr) {
+    if (existingPr && !options.yes) {
       console.log(`\n${cyan(`PR #${existingPr.number}`)} already exists: ${existingPr.url}`);
       const shouldUpdate = await confirm({
         message: "Update this PR?",
@@ -157,26 +166,46 @@ export async function prCommand(options: { dryRun?: boolean } = {}): Promise<voi
 
     const defaultBase = getDefaultBase(branch);
 
-    const base = await input({
-      message: "Base branch:",
-      default: defaultBase,
-      validate: (val) => val.trim().length > 0 || "Base branch is required",
-    });
+    // Get base branch from flag or prompt
+    let base: string;
+    if (options.base) {
+      base = options.base;
+    } else {
+      base = await input({
+        message: "Base branch:",
+        default: defaultBase,
+        validate: (val) => val.trim().length > 0 || "Base branch is required",
+      });
+    }
 
     const commits = getCommits(base.trim());
     const commitList = commits.length > 0
       ? commits.map((c) => `- ${c}`).join("\n")
       : "";
 
-    const title = await input({
-      message: "PR title:",
-      default: `${description.charAt(0).toUpperCase() + description.slice(1)}`,
-      validate: (val) => val.trim().length > 0 || "Title is required",
-    });
+    // Get title from flag or prompt
+    let title: string;
+    if (options.title) {
+      title = options.title;
+    } else {
+      title = await input({
+        message: "PR title:",
+        default: `${description.charAt(0).toUpperCase() + description.slice(1)}`,
+        validate: (val) => val.trim().length > 0 || "Title is required",
+      });
+    }
 
-    const summaryInput = await input({
-      message: "PR summary (optional, leave blank to use commits only):",
-    });
+    // Get summary from flag or prompt
+    let summaryInput: string;
+    if (options.summary !== undefined) {
+      summaryInput = options.summary;
+    } else if (options.yes) {
+      summaryInput = "";
+    } else {
+      summaryInput = await input({
+        message: "PR summary (optional, leave blank to use commits only):",
+      });
+    }
 
     const summary = [summaryInput.trim(), commitList]
       .filter(Boolean)
@@ -212,16 +241,19 @@ export async function prCommand(options: { dryRun?: boolean } = {}): Promise<voi
       return;
     }
 
-    const confirmed = await confirm({
-      message: existingPr
-        ? `Update PR #${existingPr.number}?`
-        : "Create this PR?",
-      default: true,
-    });
+    // Confirm (skip if --yes)
+    if (!options.yes) {
+      const confirmed = await confirm({
+        message: existingPr
+          ? `Update PR #${existingPr.number}?`
+          : "Create this PR?",
+        default: true,
+      });
 
-    if (!confirmed) {
-      console.log("Aborted.");
-      process.exit(0);
+      if (!confirmed) {
+        console.log("Aborted.");
+        process.exit(0);
+      }
     }
 
     // Push branch if needed
@@ -253,6 +285,9 @@ export async function prCommand(options: { dryRun?: boolean } = {}): Promise<voi
       ? ` --reviewer ${config.prReviewers.join(",")}`
       : "";
 
+    // Draft flag (unless --ready is specified)
+    const draftFlag = options.ready ? "" : " --draft";
+
     if (existingPr) {
       execSync(
         `gh pr edit ${existingPr.number} --title ${JSON.stringify(title)} --body-file -${labelFlag ? ` --add-label ${labelFlag}` : ""}`,
@@ -261,7 +296,7 @@ export async function prCommand(options: { dryRun?: boolean } = {}): Promise<voi
       console.log(green(`✓ PR #${existingPr.number} updated: ${existingPr.url}`));
     } else {
       execSync(
-        `gh pr create --draft --title ${JSON.stringify(title)} --body-file - --base ${base.trim()} --head ${branch} --assignee @me${reviewerFlag}${labelFlag ? ` --label ${labelFlag}` : ""}`,
+        `gh pr create${draftFlag} --title ${JSON.stringify(title)} --body-file - --base ${base.trim()} --head ${branch} --assignee @me${reviewerFlag}${labelFlag ? ` --label ${labelFlag}` : ""}`,
         { input: body, stdio: ["pipe", "inherit", "inherit"] }
       );
       console.log(green("✓ PR created successfully."));
