@@ -22,7 +22,9 @@
 
 1. **Check status:** `devflow status`
 2. **Check project board:** `devflow issues` - see what's in Todo/In Progress
-3. **Pick an existing issue or create a new one**
+3. **Start work on existing issue:** `devflow issues --work --issue <N> --yes`
+   - OR **create new issue:** `devflow issue --type <type> --title "..." --create-branch --yes`
+4. **Never use `devflow branch` directly** - always go through issues for traceability
 
 ### Standard Tracked Workflow
 
@@ -80,8 +82,9 @@ devflow pr
 
 5. **Before making changes:**
    - Check status: `devflow status`
-   - Check/pick issue: `devflow issues`
-   - Start work: `devflow issues --work` or create branch: `devflow branch`
+   - Check project board: `devflow issues`
+   - Start work: `devflow issues --work --issue <N> --yes`
+   - Or create new: `devflow issue --type <type> --title "..." --create-branch --yes`
 
 6. **After making changes:**
    - Stage files: `git add <files>`
@@ -211,7 +214,7 @@ devflow release --version 2.0.0 --yes
 
 ## Common Workflows
 
-### Issue-First Feature (Recommended)
+### 1. Work on Existing Issue (Default)
 ```bash
 # Check project board for existing issue
 devflow issues
@@ -227,9 +230,9 @@ devflow commit
 devflow pr
 ```
 
-### New Feature (No Existing Issue)
+### 2. Create New Issue + Work (When No Issue Exists)
 ```bash
-# Create issue with branch
+# Create issue with branch in one command
 devflow issue --type task --title "Add feature X" --create-branch --branch-desc "feature-x" --yes
 
 # ... make changes ...
@@ -238,11 +241,13 @@ devflow commit
 devflow pr
 ```
 
-### Quick Fix
+### 3. Quick Untracked Fix (Use Sparingly)
+**Only for trivial fixes like typos. Prefer creating an issue for traceability.**
 ```bash
+devflow branch --type fix --ticket UNTRACKED --description "typo" --yes
 git add <files>
 devflow commit -m "fix typo in login form"
-devflow amend           # If you need to add more changes
+devflow pr
 ```
 
 ### Fully Automated Workflow (for AI agents)
