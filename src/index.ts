@@ -23,13 +23,22 @@ import { statsCommand } from "./commands/stats.js";
 import { lintConfigCommand } from "./commands/lint-config.js";
 import { commentsCommand } from "./commands/comments.js";
 import { issueCommand } from "./commands/issue.js";
+import { updateCommand } from "./commands/update.js";
 import { loadPlugins } from "./plugins.js";
 import { checkForUpdates } from "./update-notifier.js";
+import { checkForDevflowUpdates } from "./devflow-version.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8"));
 
 // Check for updates (non-blocking, cached)
 checkForUpdates();
+
+// Check if devflow generated files need updating (skip for certain commands)
+const skipVersionCheck = ["update", "up", "init", "doctor", "completions", "--help", "-h", "--version", "-V"];
+const args = process.argv.slice(2);
+if (args.length > 0 && !skipVersionCheck.some((cmd) => args[0] === cmd)) {
+  checkForDevflowUpdates();
+}
 
 const program = new Command();
 
@@ -249,6 +258,14 @@ program
   .action(doctorCommand);
 
 program
+  .command("update")
+  .alias("up")
+  .description("Update AI instructions and other devflow files to latest version")
+  .option("--dry-run", "Preview without writing files")
+  .option("--yes", "Skip confirmation prompts")
+  .action((opts) => updateCommand(opts));
+
+program
   .command("completions")
   .description("Output shell completion script")
   .option("--shell <shell>", "Shell type (bash or zsh)", "zsh")
@@ -270,7 +287,7 @@ function generateBashCompletions(): string {
 # Add to ~/.bashrc: eval "$(devflow completions --shell bash)"
 _devflow_completions() {
   local cur="\${COMP_WORDS[COMP_CWORD]}"
-  local commands="branch commit pr amend undo fixup merge release review comments issue stash worktree log status test-plan changelog cleanup stats lint-config init doctor completions"
+  local commands="branch commit pr amend undo fixup merge release review comments issue stash worktree log status test-plan changelog cleanup stats lint-config init doctor update completions"
 
   if [ "\${COMP_CWORD}" -eq 1 ]; then
     COMPREPLY=($(compgen -W "\${commands}" -- "\${cur}"))
@@ -309,6 +326,7 @@ _devflow() {
     'lint-config:Validate devflow config (alias: lint)'
     'init:Initialize devflow config'
     'doctor:Check devflow dependencies'
+    'update:Update AI instructions to latest (alias: up)'
     'completions:Output shell completion script'
   )
 
@@ -322,7 +340,7 @@ _devflow() {
       ;;
     args)
       case "\${words[1]}" in
-        branch|commit|pr|amend|undo|fixup|merge|cleanup|changelog|issue)
+        branch|commit|pr|amend|undo|fixup|merge|cleanup|changelog|issue|update)
           _arguments '--dry-run[Preview without executing]'
           ;;
         completions)

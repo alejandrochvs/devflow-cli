@@ -3,6 +3,7 @@ import { resolve } from "path";
 import { confirm, input, select } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { PRESETS, PresetType } from "../config.js";
+import { writeVersionInfo, getCliVersion } from "../devflow-version.js";
 
 interface Scope {
   value: string;
@@ -424,6 +425,10 @@ devflow amend           # If you need to add more changes
 
       writeFileSync(resolve(devflowDir, "AI_INSTRUCTIONS.md"), aiInstructions);
       console.log("✓ Created .devflow/AI_INSTRUCTIONS.md");
+
+      // Write version file to track when files were generated
+      writeVersionInfo(getCliVersion(), cwd);
+      console.log("✓ Created .devflow/version.json");
 
       // Check if CLAUDE.md exists and offer to add reference
       const claudeMdPath = resolve(cwd, "CLAUDE.md");

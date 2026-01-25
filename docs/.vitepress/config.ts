@@ -67,6 +67,7 @@ export default defineConfig({
         text: 'Setup',
         items: [
           { text: 'doctor', link: '/commands/doctor' },
+          { text: 'update', link: '/commands/update' },
           { text: 'completions', link: '/commands/completions' },
         ],
       },
