@@ -2,6 +2,13 @@
 
 
 
+
+## [1.2.0] - 2026-01-25
+
+### Features
+
+- add update command with version tracking
+
 ## [1.1.0] - 2026-01-25
 
 ### Other
