@@ -43,6 +43,7 @@ export default defineConfig({
       {
         text: 'Workflow',
         items: [
+          { text: 'issue', link: '/commands/issue' },
           { text: 'release', link: '/commands/release' },
           { text: 'review', link: '/commands/review' },
           { text: 'comments', link: '/commands/comments' },

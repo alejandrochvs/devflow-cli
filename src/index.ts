@@ -22,6 +22,7 @@ import { logCommand } from "./commands/log.js";
 import { statsCommand } from "./commands/stats.js";
 import { lintConfigCommand } from "./commands/lint-config.js";
 import { commentsCommand } from "./commands/comments.js";
+import { issueCommand } from "./commands/issue.js";
 import { loadPlugins } from "./plugins.js";
 import { checkForUpdates } from "./update-notifier.js";
 
@@ -108,6 +109,13 @@ program
   .option("--resolved", "Show only resolved comments")
   .option("--unresolved", "Show only unresolved comments")
   .action((opts) => commentsCommand(opts));
+
+program
+  .command("issue")
+  .alias("i")
+  .description("Create a GitHub issue with Scrum templates (story, bug, task, spike, tech-debt)")
+  .option("--dry-run", "Preview without creating the issue")
+  .action((opts) => issueCommand(opts));
 
 program
   .command("stash")
@@ -198,7 +206,7 @@ function generateBashCompletions(): string {
 # Add to ~/.bashrc: eval "$(devflow completions --shell bash)"
 _devflow_completions() {
   local cur="\${COMP_WORDS[COMP_CWORD]}"
-  local commands="branch commit pr amend undo fixup merge release review comments stash worktree log status test-plan changelog cleanup stats lint-config init doctor completions"
+  local commands="branch commit pr amend undo fixup merge release review comments issue stash worktree log status test-plan changelog cleanup stats lint-config init doctor completions"
 
   if [ "\${COMP_CWORD}" -eq 1 ]; then
     COMPREPLY=($(compgen -W "\${commands}" -- "\${cur}"))
@@ -225,6 +233,7 @@ _devflow() {
     'release:Create a release (alias: rel)'
     'review:List and interact with PRs (alias: rv)'
     'comments:Show PR reviews and inline comments (alias: cm)'
+    'issue:Create GitHub issue with Scrum templates (alias: i)'
     'stash:Manage named stashes (alias: st)'
     'worktree:Manage git worktrees (alias: wt)'
     'log:Interactive commit log (alias: l)'
@@ -249,7 +258,7 @@ _devflow() {
       ;;
     args)
       case "\${words[1]}" in
-        branch|commit|pr|amend|undo|fixup|merge|cleanup|changelog)
+        branch|commit|pr|amend|undo|fixup|merge|cleanup|changelog|issue)
           _arguments '--dry-run[Preview without executing]'
           ;;
         completions)

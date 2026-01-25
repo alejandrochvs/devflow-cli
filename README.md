@@ -198,6 +198,53 @@ devflow comments --number 303
 
 Requires `gh` CLI.
 
+### `devflow issue` (alias: `i`)
+
+Create GitHub issues using Scrum-style templates with an interactive flow.
+
+**Issue Types:**
+
+| Type | Label | Branch Type |
+|------|-------|-------------|
+| User Story | `feature` | `feat/` |
+| Bug | `bug` | `fix/` |
+| Task | `task` | `chore/` |
+| Spike | `spike` | `chore/` |
+| Tech Debt | `tech-debt` | `refactor/` |
+
+**Flow:**
+1. Select issue type
+2. Fill in type-specific fields (guided prompts)
+3. Preview the issue
+4. Confirm and create via `gh issue create`
+5. Optionally create a branch and start working
+
+**Example:**
+```
+$ devflow issue
+? Select issue type: › User Story
+? As a: › logged-in user
+? I want to: › export my data as CSV
+? So that: › I can use it in spreadsheets
+? Acceptance criteria:
+  1. CSV includes all user data
+  2. (blank to finish)
+
+─── Issue Preview ───
+Type:   User Story
+Title:  export my data as CSV
+Labels: feature
+
+? Create this issue? › Yes
+✓ Issue created: https://github.com/owner/repo/issues/42
+
+? Create a branch and start working on this issue? › Yes
+? Short branch description: › export-csv
+✓ Branch created: feat/#42_export-csv
+```
+
+Requires `gh` CLI.
+
 ### `devflow stash` (alias: `st`)
 
 Named stash management with an interactive interface.
@@ -340,6 +387,7 @@ eval "$(devflow completions --shell bash)"
 | `devflow release` | `devflow rel` |
 | `devflow review` | `devflow rv` |
 | `devflow comments` | `devflow cm` |
+| `devflow issue` | `devflow i` |
 | `devflow stash` | `devflow st` |
 | `devflow worktree` | `devflow wt` |
 | `devflow log` | `devflow l` |
@@ -361,6 +409,7 @@ devflow fixup --dry-run
 devflow merge --dry-run
 devflow cleanup --dry-run
 devflow changelog --dry-run
+devflow issue --dry-run
 ```
 
 ## Configuration
