@@ -287,7 +287,7 @@ Show commit pattern analytics for the repository:
 
 ### `devflow lint-config` (alias: `lint`)
 
-Validate `.devflow.json` for errors and warnings. Designed to run in CI pipelines (exits with code 1 on errors).
+Validate `.devflow/config.json` for errors and warnings. Designed to run in CI pipelines (exits with code 1 on errors).
 
 **Checks:**
 - Valid JSON syntax
@@ -358,7 +358,7 @@ Generates a changelog entry from conventional commits since the last git tag:
 
 Checks that all devflow dependencies are properly configured:
 - git, node (>= 20), gh CLI + auth
-- `.devflow.json`, commitlint config, husky hooks
+- `.devflow/config.json`, commitlint config, husky hooks
 - `package.json` scripts
 
 ### `devflow completions`
@@ -414,7 +414,7 @@ devflow issue --dry-run
 
 ## Configuration
 
-Create a `.devflow.json` in your project root (or run `devflow init`):
+Create a `.devflow/config.json` in your project (or run `devflow init`):
 
 ```json
 {
@@ -564,7 +564,7 @@ devflow checks for newer versions on npm once every 24 hours and displays a non-
 Extend devflow with custom commands via the plugin system. Plugins are automatically discovered from:
 
 1. **npm packages** — any dependency matching `devflow-plugin-*` or `@scope/devflow-plugin-*`
-2. **Config** — explicit list in `.devflow.json`:
+2. **Config** — explicit list in `.devflow/config.json`:
 
 ```json
 {

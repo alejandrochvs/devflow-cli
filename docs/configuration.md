@@ -1,6 +1,6 @@
 # Configuration
 
-Create a `.devflow.json` in your project root (or run `devflow init`):
+Create a `.devflow/config.json` in your project (or run `devflow init`):
 
 ```json
 {

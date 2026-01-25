@@ -80,7 +80,7 @@ export async function statusCommand(): Promise<void> {
 
   // Config info
   if (config.ticketBaseUrl) {
-    console.log(`\n${dim("Config:")}  ${green("✓")} .devflow.json loaded`);
+    console.log(`\n${dim("Config:")}  ${green("✓")} devflow config loaded`);
   }
 
   console.log("");

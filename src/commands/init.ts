@@ -25,6 +25,30 @@ function readPackageJson(cwd: string): Record<string, unknown> | undefined {
   }
 }
 
+function getGitHubIssuesUrl(): string | undefined {
+  try {
+    const remoteUrl = execSync("git remote get-url origin", {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+
+    // Parse GitHub URLs (SSH or HTTPS)
+    // SSH: git@github.com:org/repo.git
+    // HTTPS: https://github.com/org/repo.git
+    const sshMatch = remoteUrl.match(/git@github\.com:([^/]+)\/(.+?)(?:\.git)?$/);
+    const httpsMatch = remoteUrl.match(/https:\/\/github\.com\/([^/]+)\/(.+?)(?:\.git)?$/);
+
+    const match = sshMatch || httpsMatch;
+    if (match) {
+      const [, org, repo] = match;
+      return `https://github.com/${org}/${repo}/issues`;
+    }
+  } catch {
+    // Not a git repo or no remote
+  }
+  return undefined;
+}
+
 function writePackageJson(cwd: string, pkg: Record<string, unknown>): void {
   const pkgPath = resolve(cwd, "package.json");
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
@@ -33,11 +57,12 @@ function writePackageJson(cwd: string, pkg: Record<string, unknown>): void {
 export async function initCommand(): Promise<void> {
   try {
     const cwd = process.cwd();
-    const configPath = resolve(cwd, ".devflow.json");
+    const devflowDir = resolve(cwd, ".devflow");
+    const configPath = resolve(devflowDir, "config.json");
 
     if (existsSync(configPath)) {
       const overwrite = await confirm({
-        message: ".devflow.json already exists. Overwrite?",
+        message: "Devflow config already exists. Overwrite?",
         default: false,
       });
       if (!overwrite) {
@@ -67,8 +92,10 @@ export async function initCommand(): Promise<void> {
     let useGitHubIssues = false;
 
     if (preset !== "simple") {
+      const detectedIssuesUrl = getGitHubIssuesUrl();
       ticketBaseUrl = await input({
         message: "Ticket base URL (e.g., https://github.com/org/repo/issues):",
+        default: detectedIssuesUrl,
       });
 
       // 1b. GitHub Issues integration
@@ -79,52 +106,61 @@ export async function initCommand(): Promise<void> {
     }
 
     // 2. Scopes
-    console.log("\nLet's define your project scopes for commits.");
-    console.log("Add scopes one at a time. Press Enter with empty name to finish.\n");
-
     const scopes: Scope[] = [];
-    let addingScopes = true;
-    while (addingScopes) {
-      const value = await input({
-        message: `Scope name${scopes.length > 0 ? " (blank to finish)" : ""}:`,
-      });
-      if (!value.trim()) {
-        if (scopes.length === 0) {
-          const useDefaults = await confirm({
-            message: "No scopes added. Use defaults (core, ui, api, config, deps, ci)?",
-            default: true,
+    const scopeChoice = await select({
+      message: "How would you like to configure commit scopes?",
+      choices: [
+        { value: "defaults", name: "Use defaults (core, ui, api, config, deps, ci)" },
+        { value: "custom", name: "Define custom scopes" },
+        { value: "skip", name: "Skip - configure later" },
+      ],
+    });
+
+    if (scopeChoice === "defaults") {
+      scopes.push(
+        { value: "core", description: "Core functionality" },
+        { value: "ui", description: "UI components" },
+        { value: "api", description: "API layer" },
+        { value: "config", description: "Configuration" },
+        { value: "deps", description: "Dependencies" },
+        { value: "ci", description: "CI/CD" },
+      );
+    } else if (scopeChoice === "custom") {
+      console.log("\nAdd scopes one at a time. Press Enter with empty name to finish.\n");
+      let addingScopes = true;
+      while (addingScopes) {
+        const value = await input({
+          message: `Scope name${scopes.length > 0 ? " (blank to finish)" : ""}:`,
+        });
+        if (!value.trim()) {
+          addingScopes = false;
+        } else {
+          const description = await input({
+            message: `Description for "${value.trim()}":`,
           });
-          if (useDefaults) {
-            scopes.push(
-              { value: "core", description: "Core functionality" },
-              { value: "ui", description: "UI components" },
-              { value: "api", description: "API layer" },
-              { value: "config", description: "Configuration" },
-              { value: "deps", description: "Dependencies" },
-              { value: "ci", description: "CI/CD" },
-            );
-          }
+          scopes.push({
+            value: value.trim().toLowerCase(),
+            description: description.trim() || value.trim(),
+          });
         }
-        addingScopes = false;
-      } else {
-        const description = await input({
-          message: `Description for "${value.trim()}":`,
-        });
-        scopes.push({
-          value: value.trim().toLowerCase(),
-          description: description.trim() || value.trim(),
-        });
       }
     }
 
-    // 3. Checklist
-    const customizeChecklist = await confirm({
-      message: "Customize PR checklist items?",
-      default: false,
+    // 3. Checklist (shown in PR descriptions)
+    let checklist = [...DEFAULT_CHECKLIST];
+    const checklistChoice = await select({
+      message: "PR checklist items (shown in pull request descriptions):",
+      choices: [
+        {
+          value: "defaults",
+          name: `Use defaults (${DEFAULT_CHECKLIST.length} items: conventions, self-review, no warnings)`,
+        },
+        { value: "custom", name: "Define custom checklist" },
+        { value: "skip", name: "Skip - no checklist" },
+      ],
     });
 
-    let checklist = [...DEFAULT_CHECKLIST];
-    if (customizeChecklist) {
+    if (checklistChoice === "custom") {
       console.log("\nAdd checklist items one at a time. Press Enter with empty text to finish.\n");
       checklist = [];
       let addingChecklist = true;
@@ -142,58 +178,44 @@ export async function initCommand(): Promise<void> {
           checklist.push(item.trim());
         }
       }
+    } else if (checklistChoice === "skip") {
+      checklist = [];
     }
 
-    // Write .devflow.json
-    const config: Record<string, unknown> = {
-      preset,
-      branchFormat: presetConfig.branchFormat,
-      scopes,
-      checklist,
-    };
+    // 4. Format customization
+    let branchFormat = presetConfig.branchFormat;
+    let commitFormat = "{type}[{ticket}]{breaking}({scope}): {message}";
 
-    if (ticketBaseUrl.trim()) {
-      config.ticketBaseUrl = ticketBaseUrl.trim();
-    }
+    const customizeFormats = await confirm({
+      message: "Customize branch/commit formats? (advanced)",
+      default: false,
+    });
 
-    // Add ticket provider if GitHub Issues is enabled
-    if (useGitHubIssues) {
-      config.ticketProvider = { type: "github" };
-    }
+    if (customizeFormats) {
+      console.log("\nAvailable placeholders:");
+      console.log("  Branch: {type}, {ticket}, {description}");
+      console.log("  Commit: {type}, {ticket}, {scope}, {message}, {breaking}\n");
 
-    // Only include issueTypes and prTemplate for custom preset or if user wants to customize
-    if (preset === "custom") {
-      config.issueTypes = presetConfig.issueTypes;
-      config.prTemplate = presetConfig.prTemplate;
-    }
-
-    writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
-    console.log("\n✓ Created .devflow.json");
-
-    // 4. Add scripts to package.json
-    const pkg = readPackageJson(cwd);
-    if (pkg) {
-      const addScripts = await confirm({
-        message: "Add commit/branch/pr scripts to package.json?",
-        default: true,
+      branchFormat = await input({
+        message: "Branch format:",
+        default: branchFormat,
       });
 
-      if (addScripts) {
-        const scripts = (pkg.scripts || {}) as Record<string, string>;
-        scripts.commit = "devflow commit";
-        scripts.branch = "devflow branch";
-        scripts.pr = "devflow pr";
-        pkg.scripts = scripts;
-        writePackageJson(cwd, pkg);
-        console.log("✓ Added scripts to package.json");
-      }
+      commitFormat = await input({
+        message: "Commit format:",
+        default: commitFormat,
+      });
     }
 
-    // 5. Commitlint setup
-    const setupCommitlint = await confirm({
-      message: "Set up commitlint for the devflow commit format?",
-      default: true,
+    // 5. Commitlint setup (validates commit messages on git commit)
+    const commitlintChoice = await select({
+      message: "Set up commitlint? (rejects commits that don't match the format)",
+      choices: [
+        { value: "yes", name: "Yes - enforce commit format with git hooks" },
+        { value: "no", name: "No - I'll validate commits manually or use CI" },
+      ],
     });
+    const setupCommitlint = commitlintChoice === "yes";
 
     if (setupCommitlint) {
       const commitlintConfig = `module.exports = {
@@ -213,23 +235,16 @@ export async function initCommand(): Promise<void> {
       console.log("✓ Created commitlint.config.js");
 
       // Install commitlint deps
-      const installCommitlint = await confirm({
-        message: "Install @commitlint/cli and @commitlint/config-conventional?",
-        default: true,
-      });
-
-      if (installCommitlint) {
-        console.log("Installing commitlint...");
-        try {
-          execSync("npm install -D @commitlint/cli @commitlint/config-conventional", {
-            cwd,
-            stdio: "inherit",
-          });
-          console.log("✓ Installed commitlint");
-        } catch {
-          console.log("⚠ Failed to install commitlint. Run manually:");
-          console.log("  npm install -D @commitlint/cli @commitlint/config-conventional");
-        }
+      console.log("Installing commitlint...");
+      try {
+        execSync("npm install -D @commitlint/cli @commitlint/config-conventional", {
+          cwd,
+          stdio: "inherit",
+        });
+        console.log("✓ Installed commitlint");
+      } catch {
+        console.log("⚠ Failed to install commitlint. Run manually:");
+        console.log("  npm install -D @commitlint/cli @commitlint/config-conventional");
       }
     }
 
@@ -241,21 +256,14 @@ export async function initCommand(): Promise<void> {
 
     if (setupHusky) {
       // Install husky
-      const installHusky = await confirm({
-        message: "Install husky?",
-        default: true,
-      });
-
-      if (installHusky) {
-        console.log("Installing husky...");
-        try {
-          execSync("npm install -D husky", { cwd, stdio: "inherit" });
-          execSync("npx husky init", { cwd, stdio: "inherit" });
-          console.log("✓ Installed and initialized husky");
-        } catch {
-          console.log("⚠ Failed to install husky. Run manually:");
-          console.log("  npm install -D husky && npx husky init");
-        }
+      console.log("Installing husky...");
+      try {
+        execSync("npm install -D husky", { cwd, stdio: "inherit" });
+        execSync("npx husky init", { cwd, stdio: "inherit" });
+        console.log("✓ Installed and initialized husky");
+      } catch {
+        console.log("⚠ Failed to install husky. Run manually:");
+        console.log("  npm install -D husky && npx husky init");
       }
 
       // Create commit-msg hook
@@ -267,7 +275,7 @@ export async function initCommand(): Promise<void> {
       const commitMsgHook = `npx --no -- commitlint --edit $1 || {
   echo ""
   echo "  Commit message does not follow the required format."
-  echo "  Use: npm run commit"
+  echo "  Use: devflow commit"
   echo ""
   exit 1
 }
@@ -346,12 +354,131 @@ jobs:
       console.log("✓ Created .github/workflows/ci.yml");
     }
 
-    // 8. Summary
+    // 8. AI agent instructions
+    const installAiInstructions = await confirm({
+      message: "Install AI agent instructions? (helps Claude/Copilot use devflow)",
+      default: true,
+    });
+
+    if (installAiInstructions) {
+      if (!existsSync(devflowDir)) {
+        mkdirSync(devflowDir, { recursive: true });
+      }
+
+      const aiInstructions = `# DevFlow - AI Agent Instructions
+
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| New branch | \`devflow branch\` |
+| Commit changes | \`devflow commit\` or \`devflow commit -m "message"\` |
+| Create/update PR | \`devflow pr\` |
+| Create issue | \`devflow issue\` |
+| Amend last commit | \`devflow amend\` |
+| Check status | \`devflow status\` |
+| View PR comments | \`devflow comments\` |
+
+## Rules for AI Agents
+
+1. **Use devflow instead of git for:**
+   - Branches: \`devflow branch\` not \`git checkout -b\`
+   - Commits: \`devflow commit\` not \`git commit\`
+   - PRs: \`devflow pr\` not \`gh pr create\`
+
+2. **Commit format:** \`${commitFormat}\`
+   - Example: \`feat[123](auth): add OAuth2 login\`
+
+3. **Branch format:** \`${branchFormat}\`
+   - Example: \`feat/123_add-login\`
+
+4. **Before making changes:**
+   - Check status: \`devflow status\`
+   - Create branch if needed: \`devflow branch\`
+
+5. **After making changes:**
+   - Stage files: \`git add <files>\`
+   - Commit: \`devflow commit\`
+   - When ready: \`devflow pr\`
+
+6. **Use \`--dry-run\` to preview** any command without executing
+
+## Common Workflows
+
+### New Feature
+\`\`\`bash
+devflow branch          # Create feature branch
+# ... make changes ...
+git add <files>
+devflow commit          # Commit with proper format
+devflow pr              # Create pull request
+\`\`\`
+
+### Quick Fix
+\`\`\`bash
+git add <files>
+devflow commit -m "fix typo in login form"
+devflow amend           # If you need to add more changes
+\`\`\`
+`;
+
+      writeFileSync(resolve(devflowDir, "AI_INSTRUCTIONS.md"), aiInstructions);
+      console.log("✓ Created .devflow/AI_INSTRUCTIONS.md");
+
+      // Check if CLAUDE.md exists and offer to add reference
+      const claudeMdPath = resolve(cwd, "CLAUDE.md");
+      if (existsSync(claudeMdPath)) {
+        const claudeMd = readFileSync(claudeMdPath, "utf-8");
+        if (!claudeMd.includes(".devflow/AI_INSTRUCTIONS.md")) {
+          const addReference = await confirm({
+            message: "Add devflow reference to existing CLAUDE.md?",
+            default: true,
+          });
+          if (addReference) {
+            const reference = `\n\n## DevFlow\n\nThis project uses devflow for Git workflow automation. See \`.devflow/AI_INSTRUCTIONS.md\` for commands and usage.\n`;
+            writeFileSync(claudeMdPath, claudeMd + reference);
+            console.log("✓ Updated CLAUDE.md with devflow reference");
+          }
+        }
+      }
+    }
+
+    // 10. Write .devflow/config.json
+    const config: Record<string, unknown> = {
+      preset,
+      branchFormat,
+      commitFormat,
+      scopes,
+      checklist,
+    };
+
+    if (ticketBaseUrl.trim()) {
+      config.ticketBaseUrl = ticketBaseUrl.trim();
+    }
+
+    if (useGitHubIssues) {
+      config.ticketProvider = { type: "github" };
+    }
+
+    if (preset === "custom") {
+      config.issueTypes = presetConfig.issueTypes;
+      config.prTemplate = presetConfig.prTemplate;
+    }
+
+    // Ensure .devflow directory exists
+    if (!existsSync(devflowDir)) {
+      mkdirSync(devflowDir, { recursive: true });
+    }
+
+    writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+    console.log("✓ Created .devflow/config.json");
+
+    // 11. Summary
     console.log("\n  Setup complete!\n");
     console.log("Usage:");
-    console.log("  npm run branch    Create a new branch");
-    console.log("  npm run commit    Create a conventional commit");
-    console.log("  npm run pr        Create or update a PR");
+    console.log("  devflow branch    Create a new branch");
+    console.log("  devflow commit    Create a conventional commit");
+    console.log("  devflow pr        Create or update a PR");
     console.log("  devflow status    Show branch and PR info");
     console.log("  devflow doctor    Verify setup");
     console.log("");

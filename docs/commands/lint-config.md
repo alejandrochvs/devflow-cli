@@ -1,6 +1,6 @@
 # lint-config
 
-Validate `.devflow.json` for errors and warnings.
+Validate `.devflow/config.json` for errors and warnings.
 
 **Alias:** `devflow lint`
 

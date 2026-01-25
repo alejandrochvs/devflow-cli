@@ -30,7 +30,7 @@ devflow --help
 ```
 src/
 ├── index.ts           # CLI entry point (commander setup)
-├── config.ts          # .devflow.json loading and validation
+├── config.ts          # .devflow/config.json loading and validation
 ├── git.ts             # Shared git utilities
 ├── colors.ts          # ANSI color helpers
 ├── monorepo.ts        # Workspace detection

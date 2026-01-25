@@ -169,14 +169,14 @@ program
 program
   .command("lint-config")
   .alias("lint")
-  .description("Validate .devflow.json for errors and warnings (CI-friendly)")
+  .description("Validate devflow config for errors and warnings (CI-friendly)")
   .action(lintConfigCommand);
 
 // --- Setup commands ---
 
 program
   .command("init")
-  .description("Initialize a .devflow.json config and project setup")
+  .description("Initialize devflow config and project setup")
   .action(initCommand);
 
 program
@@ -242,7 +242,7 @@ _devflow() {
     'changelog:Generate changelog from commits'
     'cleanup:Delete merged local branches'
     'stats:Show commit and contributor stats'
-    'lint-config:Validate .devflow.json (alias: lint)'
+    'lint-config:Validate devflow config (alias: lint)'
     'init:Initialize devflow config'
     'doctor:Check devflow dependencies'
     'completions:Output shell completion script'

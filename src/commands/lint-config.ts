@@ -5,12 +5,12 @@ import { validateConfig } from "../config.js";
 
 export function lintConfigCommand(): void {
   const cwd = process.cwd();
-  const configPath = resolve(cwd, ".devflow.json");
+  const configPath = resolve(cwd, ".devflow/config.json");
 
   console.log(`\n${dim("───")} ${bold("Config Lint")} ${dim("───")}\n`);
 
   if (!existsSync(configPath)) {
-    console.log(red("✗ No .devflow.json found"));
+    console.log(red("✗ No devflow config found"));
     console.log(dim("  Run: devflow init"));
     process.exit(1);
   }
@@ -19,7 +19,7 @@ export function lintConfigCommand(): void {
   try {
     raw = JSON.parse(readFileSync(configPath, "utf-8"));
   } catch (err) {
-    console.log(red("✗ Invalid JSON in .devflow.json"));
+    console.log(red("✗ Invalid JSON in devflow config"));
     console.log(dim(`  ${(err as Error).message}`));
     process.exit(1);
   }
@@ -79,7 +79,7 @@ export function lintConfigCommand(): void {
 
   // Report
   if (errors.length === 0 && warnings.length === 0) {
-    console.log(green("✓ .devflow.json is valid"));
+    console.log(green("✓ devflow config is valid"));
     return;
   }
 

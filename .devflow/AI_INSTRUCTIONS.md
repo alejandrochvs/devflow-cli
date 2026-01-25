@@ -282,7 +282,7 @@ devflow issue
 
 ## Configuration
 
-The project should have a `.devflow.json` in the root:
+The project should have a `.devflow/config.json` file:
 
 ```json
 {
@@ -329,11 +329,11 @@ If a devflow command fails:
 1. Check if `gh` CLI is installed and authenticated (`gh auth status`)
 2. Run `devflow doctor` to verify setup
 3. Ensure you're in a git repository
-4. Check if `.devflow.json` exists and is valid
+4. Check if `.devflow/config.json` exists and is valid
 
 ## Notes
 
 - All commands support `--help` for detailed options
 - Most commands have short aliases (see command reference above)
-- devflow reads configuration from `.devflow.json` in project root
+- devflow reads configuration from `.devflow/config.json`
 - PR commands require GitHub CLI (`gh`) to be installed and authenticated

@@ -447,7 +447,7 @@ function mergeConfigs(base: Record<string, unknown>, override: Record<string, un
 }
 
 export function loadConfig(cwd: string = process.cwd()): DevflowConfig {
-  const configPath = resolve(cwd, ".devflow.json");
+  const configPath = resolve(cwd, ".devflow/config.json");
 
   if (!existsSync(configPath)) {
     // Even without config, detect monorepo workspaces as scopes
@@ -470,7 +470,7 @@ export function loadConfig(cwd: string = process.cwd()): DevflowConfig {
     const warnings = validateConfig(raw);
     if (warnings.length > 0) {
       for (const w of warnings) {
-        console.error(yellow(`⚠ .devflow.json: ${w.message}`));
+        console.error(yellow(`⚠ .devflow/config.json: ${w.message}`));
       }
     }
 
@@ -502,7 +502,7 @@ export function loadConfig(cwd: string = process.cwd()): DevflowConfig {
       ticketProvider: raw.ticketProvider as TicketProviderConfig | undefined,
     };
   } catch {
-    console.error(yellow("⚠ Failed to parse .devflow.json, using defaults."));
+    console.error(yellow("⚠ Failed to parse .devflow/config.json, using defaults."));
     return DEFAULT_CONFIG;
   }
 }

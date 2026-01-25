@@ -477,7 +477,7 @@ Do you use dry-run flags? Or do you live dangerously?
 
 **Goal:** Appeal to team leads managing multiple repos.
 
-**Media:** Code snippet showing `extends` in .devflow.json + the base config package structure.
+**Media:** Code snippet showing `extends` in .devflow/config.json + the base config package structure.
 
 **Post:**
 
@@ -780,7 +780,7 @@ Checks:
 ✓ git installed
 ✓ node >= 20
 ✓ gh CLI installed and authenticated
-✓ .devflow.json exists and valid
+✓ .devflow/config.json exists and valid
 ✓ commitlint config present
 ✓ husky hooks configured
 ✓ package.json scripts set up

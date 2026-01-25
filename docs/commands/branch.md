@@ -48,7 +48,7 @@ When `ticketProvider` is configured, you get an issue picker:
 | `test` | `test` |
 | `chore`, `maintenance` | `chore` |
 
-Configure in `.devflow.json`:
+Configure in `.devflow/config.json`:
 
 ```json
 {
@@ -60,7 +60,7 @@ Configure in `.devflow.json`:
 
 ## Branch Format
 
-The format is configurable via `branchFormat` in `.devflow.json`. Default depends on your preset:
+The format is configurable via `branchFormat` in `.devflow/config.json`. Default depends on your preset:
 
 | Preset | Format | Example |
 |--------|--------|---------|

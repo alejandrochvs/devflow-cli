@@ -189,7 +189,7 @@ npx devflow notion-setup
 2. User selects their task database
 3. Auto-detects property names (title, status, assignee)
 4. Asks which property to use as ticket ID
-5. Writes config to `.devflow.json`
+5. Writes config to `.devflow/config.json`
 
 ### Auto-transition
 

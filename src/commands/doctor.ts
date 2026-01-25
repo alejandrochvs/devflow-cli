@@ -67,11 +67,11 @@ export async function doctorCommand(): Promise<void> {
     : { name: "git repository", status: "error", detail: "Not inside a git repository" }
   );
 
-  // 6. .devflow.json
-  const configExists = existsSync(resolve(cwd, ".devflow.json"));
+  // 6. devflow config
+  const configExists = existsSync(resolve(cwd, ".devflow/config.json"));
   checks.push(configExists
-    ? { name: ".devflow.json", status: "ok" }
-    : { name: ".devflow.json", status: "warning", detail: "Not found (run: devflow init)" }
+    ? { name: "devflow config", status: "ok" }
+    : { name: "devflow config", status: "warning", detail: "Not found (run: devflow init)" }
   );
 
   // 7. commitlint

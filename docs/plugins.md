@@ -7,7 +7,7 @@ Extend devflow with custom commands via the plugin system.
 Plugins are automatically discovered from:
 
 1. **npm packages** — any dependency matching `devflow-plugin-*` or `@scope/devflow-plugin-*`
-2. **Config** — explicit list in `.devflow.json`:
+2. **Config** — explicit list in `.devflow/config.json`:
 
 ```json
 {

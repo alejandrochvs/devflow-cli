@@ -22,7 +22,7 @@ You can expect an initial response within 72 hours. We will work with you to und
 devflow is a CLI tool that executes git and GitHub CLI commands on the user's behalf. Security considerations include:
 
 - **Command injection** — User inputs (branch names, commit messages, file paths) are passed to shell commands. We use `JSON.stringify()` for escaping.
-- **Config file parsing** — `.devflow.json` is parsed as JSON. The `extends` field resolves npm packages or local files.
+- **Config file parsing** — `.devflow/config.json` is parsed as JSON. The `extends` field resolves npm packages or local files.
 - **Network access** — The update notifier checks npm for newer versions. The `pr` and `merge` commands use the GitHub CLI.
 
 devflow does not collect telemetry, send analytics, or access any services beyond npm (for update checks) and GitHub (via `gh` CLI).

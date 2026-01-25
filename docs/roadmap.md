@@ -17,7 +17,7 @@ interface TicketProvider {
 }
 ```
 
-Configure in `.devflow.json`:
+Configure in `.devflow/config.json`:
 
 ```json
 {

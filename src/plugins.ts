@@ -31,8 +31,8 @@ function findPlugins(cwd: string): string[] {
     }
   }
 
-  // Check .devflow.json for explicit plugin list
-  const configPath = resolve(cwd, ".devflow.json");
+  // Check devflow config for explicit plugin list
+  const configPath = resolve(cwd, ".devflow/config.json");
   if (existsSync(configPath)) {
     try {
       const config = JSON.parse(readFileSync(configPath, "utf-8"));

@@ -157,7 +157,7 @@ If `board` is not configured, show a board picker during first use:
     Design Tasks
 ```
 
-Save selection to `.devflow.json` automatically.
+Save selection to `.devflow/config.json` automatically.
 
 ### List filtering
 

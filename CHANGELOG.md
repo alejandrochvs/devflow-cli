@@ -30,7 +30,7 @@
 - **test-plan** — New command to define and manage test steps per branch (`devflow test-plan`)
 - **Command aliases** — Single-letter shortcuts for all core commands (b, c, p, a, u, f, m, s, tp)
 - **Branch protection** — Warns when committing directly to main/master/develop/production
-- **Shareable configs** — `extends` field in `.devflow.json` for npm packages or relative paths
+- **Shareable configs** — `extends` field in `.devflow/config.json` for npm packages or relative paths
 - **Monorepo awareness** — Auto-discovers workspace packages as scopes (npm, pnpm, lerna, nx, turborepo)
 - **Update notifier** — Checks npm every 24h and shows notification when newer version available
 - **Pre-push hook** — Optional lint + typecheck hook in `devflow init` wizard
@@ -54,7 +54,7 @@
 - **doctor** — New command to verify devflow dependencies and setup
 - **completions** — Shell completion scripts for bash and zsh
 - **Scope inference from paths** — Auto-suggest scope based on staged file glob patterns
-- **Configurable commit format** — `commitFormat` field with placeholders
+- **Configurable commit format** — `commitFormat` field in config with placeholders
 - **PR template config** — Customizable sections and reviewer defaults
 - **Config validation** — Warns on unknown fields and missing required properties
 - **Colored output** — ANSI colors without external dependencies

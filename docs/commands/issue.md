@@ -190,7 +190,7 @@ For User Stories and Bugs, you can also add test plan steps that will be include
 
 ## Custom Issue Types
 
-You can define custom issue types in `.devflow.json`:
+You can define custom issue types in `.devflow/config.json`:
 
 ```json
 {
