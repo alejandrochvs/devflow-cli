@@ -1,339 +1,170 @@
-# DevFlow CLI - AI Agent Instructions
+# DevFlow - AI Agent Instructions
 
-This document provides instructions for AI agents on how to use the devflow CLI tool effectively.
+## Quick Reference
 
-## Overview
+| Task | Command |
+|------|---------|
+| New branch | `devflow branch` |
+| Commit changes | `devflow commit` or `devflow commit -m "message"` |
+| Create/update PR | `devflow pr` |
+| Create issue | `devflow issue` |
+| Amend last commit | `devflow amend` |
+| Check status | `devflow status` |
+| View PR comments | `devflow comments` |
 
-devflow is an interactive CLI for Git workflow automation. It handles:
-- Branch creation with consistent naming
-- Conventional commit formatting
-- Pull request creation and updates
-- Issue creation with templates
-- Various Git operations (amend, fixup, merge, etc.)
+## Rules for AI Agents
 
-## When to Use DevFlow
+1. **Use devflow instead of git for:**
+   - Branches: `devflow branch` not `git checkout -b`
+   - Commits: `devflow commit` not `git commit`
+   - PRs: `devflow pr` not `gh pr create`
 
-Use devflow commands instead of raw git commands when:
-- Creating branches (ensures consistent naming)
-- Making commits (ensures conventional commit format)
-- Creating/updating PRs (generates structured PR body)
-- Creating GitHub issues (uses project templates)
+2. **Commit format:** `{type}[{ticket}]{breaking}({scope}): {message}`
+   - Example: `feat[123](auth): add OAuth2 login`
 
-## Command Reference
+3. **Branch format:** `{type}/{ticket}_{description}`
+   - Example: `feat/123_add-login`
 
-### Core Workflow Commands
+4. **Before making changes:**
+   - Check status: `devflow status`
+   - Create branch if needed: `devflow branch`
 
-#### `devflow branch` (alias: `b`)
-Create a new branch with consistent naming.
+5. **After making changes:**
+   - Stage files: `git add <files>`
+   - Commit: `devflow commit`
+   - When ready: `devflow pr`
 
+6. **Use `--dry-run` to preview** any command without executing
+
+## Non-Interactive Mode (AI-Friendly)
+
+All commands support flags to bypass interactive prompts. Use `--yes` to skip confirmations.
+
+### Branch Command
 ```bash
-# Interactive mode (recommended)
-devflow branch
-
-# Dry run to preview
-devflow branch --dry-run
+devflow branch --type feat --ticket 123 --description "add-login" --yes
+devflow branch --type fix --ticket UNTRACKED --description "typo" --yes
+devflow branch --type feat --ticket 456 --description "oauth" --test-plan "Login works|Logout works" --yes
 ```
 
-**When to use:** Starting work on a new feature, bug fix, or task.
-
-**Branch format depends on preset:**
-- Scrum/Kanban: `{type}/{ticket}_{description}` → `feat/ENV-123_add-login`
-- Simple: `{type}/{description}` → `feat/add-login`
-
----
-
-#### `devflow commit` (alias: `c`)
-Create a conventional commit with the project's format.
-
+### Commit Command
 ```bash
-# Interactive mode (stages files, prompts for details)
-devflow commit
-
-# Dry run to preview
-devflow commit --dry-run
-
-# Quick commit with message
-devflow commit -m "add user authentication"
+devflow commit --type feat --scope auth --message "add OAuth2 login" --all --yes
+devflow commit --type fix --message "fix typo" --files "src/app.ts,src/index.ts" --yes
+devflow commit --type feat --message "add API" --breaking --breaking-desc "Changes API format" --yes
 ```
 
-**When to use:** After making changes that should be committed.
-
-**Commit format:** `{type}[{ticket}]({scope}): {message}`
-Example: `feat[ENV-123](auth): add OAuth2 login flow`
-
----
-
-#### `devflow pr` (alias: `p`)
-Create or update a pull request.
-
+### PR Command
 ```bash
-# Create/update PR interactively
-devflow pr
-
-# Dry run to preview PR body
-devflow pr --dry-run
-
-# Target a specific base branch
-devflow pr --base develop
+devflow pr --title "Add OAuth2 login" --summary "Implements OAuth2 flow" --yes
+devflow pr --title "Feature X" --base develop --ready --yes
 ```
 
-**When to use:** When ready to open a PR or update an existing one.
-
----
-
-#### `devflow issue` (alias: `i`)
-Create a GitHub issue with project templates.
-
+### Issue Command
 ```bash
-# Interactive mode
-devflow issue
-
-# Dry run to preview
-devflow issue --dry-run
+devflow issue --type bug --title "Login crashes on iOS" --body "Steps to reproduce..." --yes
+devflow issue --type user-story --json '{"asA":"user","iWant":"to login","soThat":"I can access my account"}' --yes
+devflow issue --type task --title "Update deps" --create-branch --branch-desc "update-deps" --yes
 ```
 
-**When to use:** Creating new issues for features, bugs, tasks.
-
----
-
-### Modification Commands
-
-#### `devflow amend` (alias: `a`)
-Amend the last commit.
-
+### Amend Command
 ```bash
-devflow amend              # Amend with same message
-devflow amend -m "new msg" # Amend with new message
-devflow amend --no-edit    # Amend without editing message
+devflow amend --type fix --message "correct typo" --yes
+devflow amend --scope auth --message "add validation" --yes
 ```
 
----
-
-#### `devflow fixup` (alias: `f`)
-Create a fixup commit for a previous commit.
-
+### Undo Command
 ```bash
-devflow fixup  # Select commit to fix interactively
+devflow undo --yes
 ```
 
----
-
-#### `devflow undo` (alias: `u`)
-Undo the last commit (keeps changes staged).
-
+### Fixup Command
 ```bash
-devflow undo
+devflow fixup --target abc1234 --all --yes
+devflow fixup --target abc1234 --files "src/app.ts" --auto-squash --yes
 ```
 
----
-
-### PR Management Commands
-
-#### `devflow review` (alias: `rv`)
-View and checkout PRs for review.
-
+### Cleanup Command
 ```bash
-devflow review         # List PRs to review
-devflow review 123     # Checkout PR #123
+devflow cleanup --all --yes
+devflow cleanup --branches "feat/old,fix/done" --force --yes
 ```
 
----
-
-#### `devflow comments` (alias: `cm`)
-View PR review comments.
-
+### Merge Command
 ```bash
-devflow comments              # Current branch's PR
-devflow comments 123          # Specific PR
-devflow comments --unresolved # Only unresolved comments
-devflow comments --resolved   # Only resolved comments
+devflow merge --method squash --yes
+devflow merge --method rebase --yes
 ```
 
----
-
-#### `devflow merge` (alias: `m`)
-Merge a PR with options.
-
+### Stash Command
 ```bash
-devflow merge           # Merge current branch's PR
-devflow merge 123       # Merge PR #123
-devflow merge --squash  # Squash merge
-devflow merge --rebase  # Rebase merge
+devflow stash --action save --message "WIP: feature X" --include-untracked
+devflow stash --action pop --index 0 --yes
+devflow stash --action drop --index 0 --yes
 ```
 
----
-
-### Utility Commands
-
-#### `devflow status` (alias: `s`)
-Show branch and PR status.
-
+### Test Plan Command
 ```bash
-devflow status
+devflow test-plan --add "Step 1|Step 2|Step 3"
+devflow test-plan --replace "New step 1|New step 2"
+devflow test-plan --clear
+devflow test-plan --show
 ```
 
----
-
-#### `devflow log` (alias: `l`)
-Show formatted commit log.
-
+### Changelog Command
 ```bash
-devflow log        # Commits on current branch
-devflow log -n 20  # Last 20 commits
+devflow changelog --version 2.0.0 --yes
 ```
 
----
-
-#### `devflow stash` (alias: `st`)
-Interactive stash management.
-
+### Review Command
 ```bash
-devflow stash       # Stash changes
-devflow stash pop   # Pop last stash
-devflow stash list  # List stashes
+devflow review --pr 123 --action checkout
+devflow review --pr 123 --action approve --comment "LGTM!"
+devflow review --pr 123 --action comment --comment "Please fix the typo"
+devflow review --pr 123 --action request-changes --comment "Needs error handling"
 ```
 
----
-
-#### `devflow cleanup`
-Clean up merged branches.
-
+### Worktree Command
 ```bash
-devflow cleanup           # Interactive cleanup
-devflow cleanup --dry-run # Preview what would be deleted
+devflow worktree --action list
+devflow worktree --action add --branch feat/new-feature --path ../project-new-feature
+devflow worktree --action remove --path ../project-old --yes
 ```
 
----
-
-#### `devflow doctor`
-Verify devflow setup and configuration.
-
+### Release Command
 ```bash
-devflow doctor
+devflow release --bump patch --yes
+devflow release --bump minor --yes
+devflow release --version 2.0.0 --yes
 ```
-
----
 
 ## Common Workflows
 
-### Starting a New Feature
-
+### New Feature
 ```bash
-# 1. Create a branch
-devflow branch
-# Select: feat
-# Enter ticket: ENV-123
-# Enter description: add user authentication
-
-# 2. Make changes and commit
-devflow commit
-# Select type: feat
-# Enter scope: auth
-# Enter message: add OAuth2 provider
-
-# 3. Create PR when ready
-devflow pr
+devflow branch          # Create feature branch
+# ... make changes ...
+git add <files>
+devflow commit          # Commit with proper format
+devflow pr              # Create pull request
 ```
 
-### Fixing a Bug
-
+### Quick Fix
 ```bash
-# 1. Create a fix branch
-devflow branch
-# Select: fix
-# Enter ticket: BUG-456
-# Enter description: login button unresponsive
-
-# 2. Commit the fix
-devflow commit -m "handle touch events on mobile"
-
-# 3. Create PR
-devflow pr
+git add <files>
+devflow commit -m "fix typo in login form"
+devflow amend           # If you need to add more changes
 ```
 
-### Quick Commit (When Context is Clear)
-
+### Fully Automated Workflow (for AI agents)
 ```bash
-# Stage specific files first
-git add src/auth/login.ts
+# Create branch
+devflow branch --type feat --ticket 123 --description "add-login" --yes
 
-# Quick commit with message
-devflow commit -m "add password validation"
+# Make changes and commit
+git add -A
+devflow commit --type feat --scope auth --message "add login form" --yes
+
+# Create PR
+devflow pr --title "Add login form" --summary "Implements login UI" --yes
 ```
-
-### Amending a Commit
-
-```bash
-# Make additional changes
-git add .
-
-# Amend the last commit
-devflow amend --no-edit
-```
-
-### Creating an Issue Then Working on It
-
-```bash
-# Create issue (will offer to create branch after)
-devflow issue
-# Select type, fill in details
-# Say "yes" to create branch
-```
-
-## Configuration
-
-The project should have a `.devflow/config.json` file:
-
-```json
-{
-  "preset": "scrum",
-  "branchFormat": "{type}/{ticket}_{description}",
-  "ticketBaseUrl": "https://github.com/org/repo/issues",
-  "ticketProvider": { "type": "github" },
-  "scopes": [
-    { "value": "auth", "description": "Authentication" },
-    { "value": "ui", "description": "UI components" }
-  ]
-}
-```
-
-### Presets
-
-| Preset | Ticket Required | Issue Types |
-|--------|-----------------|-------------|
-| `scrum` | Yes | User Story, Bug, Task, Spike, Tech Debt |
-| `kanban` | Yes | Feature, Bug, Improvement, Task |
-| `simple` | No | Feature, Bug, Task |
-
-### Ticket Provider
-
-When `ticketProvider` is configured:
-- `devflow branch` offers to pick from open GitHub issues
-- Branch type is inferred from issue labels (bug → fix, enhancement → feat)
-- Branch description is pre-filled from issue title
-- PRs use `Closes #N` syntax for auto-close
-
-## Best Practices for AI Agents
-
-1. **Always use `--dry-run` first** when uncertain about the outcome
-2. **Use devflow for commits** instead of `git commit` to maintain format consistency
-3. **Use devflow for branches** instead of `git checkout -b` for naming conventions
-4. **Check `devflow status`** to understand current branch and PR state
-5. **Run `devflow doctor`** if something seems misconfigured
-6. **Prefer interactive mode** when multiple inputs are needed
-7. **Use quick commit `-m`** only when scope and type are clear from context
-
-## Error Handling
-
-If a devflow command fails:
-1. Check if `gh` CLI is installed and authenticated (`gh auth status`)
-2. Run `devflow doctor` to verify setup
-3. Ensure you're in a git repository
-4. Check if `.devflow/config.json` exists and is valid
-
-## Notes
-
-- All commands support `--help` for detailed options
-- Most commands have short aliases (see command reference above)
-- devflow reads configuration from `.devflow/config.json`
-- PR commands require GitHub CLI (`gh`) to be installed and authenticated

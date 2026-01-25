@@ -49,6 +49,21 @@ devflow commit --dry-run
 devflow pr --dry-run
 ```
 
+## Non-Interactive Mode
+
+All commands support flags to bypass interactive prompts. Use `--yes` to skip confirmations:
+
+```bash
+# Create branch without prompts
+devflow branch --type feat --ticket 123 --description "add-login" --yes
+
+# Commit without prompts
+devflow commit --type feat --scope auth --message "add login" --all --yes
+
+# Create PR without prompts
+devflow pr --title "Add login" --summary "Implements login flow" --yes
+```
+
 ## Full Documentation
 
 See `.devflow/AI_INSTRUCTIONS.md` for complete command reference and workflows.

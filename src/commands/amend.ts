@@ -42,7 +42,16 @@ function parseCommitMessage(msg: string, format: string): {
   return { message: msg, breaking: false };
 }
 
-export async function amendCommand(options: { dryRun?: boolean } = {}): Promise<void> {
+export interface AmendOptions {
+  dryRun?: boolean;
+  type?: string;
+  scope?: string;
+  message?: string;
+  breaking?: boolean;
+  yes?: boolean;
+}
+
+export async function amendCommand(options: AmendOptions = {}): Promise<void> {
   try {
     const config = loadConfig();
     const lastMessage = getLastCommitMessage();
@@ -50,23 +59,33 @@ export async function amendCommand(options: { dryRun?: boolean } = {}): Promise<
 
     console.log(`\n${dim("Last commit:")} ${lastMessage}\n`);
 
-    const editMessage = await confirm({
-      message: "Edit commit message?",
-      default: true,
-    });
+    // Determine if we should edit (skip prompt if any edit flags provided or --yes)
+    const hasEditFlags = !!(options.type || options.scope !== undefined || options.message || options.breaking !== undefined);
+    let editMessage: boolean;
+    if (hasEditFlags || options.yes) {
+      editMessage = hasEditFlags;
+    } else {
+      editMessage = await confirm({
+        message: "Edit commit message?",
+        default: true,
+      });
+    }
 
     let newMessage = lastMessage;
 
     if (editMessage) {
-      const type = await select({
+      // Get type from flag or prompt
+      const type = options.type || await select({
         message: "Select commit type:",
         choices: config.commitTypes.map((t) => ({ value: t.value, name: t.label })),
         default: parsed.type,
       });
 
+      // Get scope from flag or prompt
       let finalScope: string | undefined;
-
-      if (config.scopes.length > 0) {
+      if (options.scope !== undefined) {
+        finalScope = options.scope;
+      } else if (config.scopes.length > 0) {
         finalScope = await search({
           message: parsed.scope
             ? `Select scope (current: ${cyan(parsed.scope)}):`
@@ -96,16 +115,30 @@ export async function amendCommand(options: { dryRun?: boolean } = {}): Promise<
         });
       }
 
-      const message = await input({
-        message: "Enter commit message:",
-        default: parsed.message,
-        validate: (val) => val.trim().length > 0 || "Commit message is required",
-      });
+      // Get message from flag or prompt
+      let message: string;
+      if (options.message) {
+        message = options.message;
+      } else {
+        message = await input({
+          message: "Enter commit message:",
+          default: parsed.message,
+          validate: (val) => val.trim().length > 0 || "Commit message is required",
+        });
+      }
 
-      const isBreaking = await confirm({
-        message: "Is this a breaking change?",
-        default: parsed.breaking,
-      });
+      // Get breaking change status from flag or prompt
+      let isBreaking: boolean;
+      if (options.breaking !== undefined) {
+        isBreaking = options.breaking;
+      } else if (options.yes) {
+        isBreaking = parsed.breaking;
+      } else {
+        isBreaking = await confirm({
+          message: "Is this a breaking change?",
+          default: parsed.breaking,
+        });
+      }
 
       const ticket = parsed.ticket || inferTicket();
       const breaking = isBreaking ? "!" : "";
@@ -144,14 +177,17 @@ export async function amendCommand(options: { dryRun?: boolean } = {}): Promise<
       return;
     }
 
-    const confirmed = await confirm({
-      message: "Amend this commit?",
-      default: true,
-    });
+    // Confirm (skip if --yes)
+    if (!options.yes) {
+      const confirmed = await confirm({
+        message: "Amend this commit?",
+        default: true,
+      });
 
-    if (!confirmed) {
-      console.log("Aborted.");
-      process.exit(0);
+      if (!confirmed) {
+        console.log("Aborted.");
+        process.exit(0);
+      }
     }
 
     execSync(`git commit --amend -m ${JSON.stringify(newMessage)}`, {

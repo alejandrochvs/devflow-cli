@@ -127,7 +127,14 @@ function updateChangelog(cwd: string, version: string, notes: string): void {
   }
 }
 
-export async function releaseCommand(options: { dryRun?: boolean } = {}): Promise<void> {
+export interface ReleaseOptions {
+  dryRun?: boolean;
+  bump?: string;
+  version?: string;
+  yes?: boolean;
+}
+
+export async function releaseCommand(options: ReleaseOptions = {}): Promise<void> {
   try {
     const cwd = process.cwd();
     checkGhInstalled();
@@ -148,17 +155,33 @@ export async function releaseCommand(options: { dryRun?: boolean } = {}): Promis
 
     const suggested = suggestBump(commits);
 
-    const bump = await select({
-      message: `Version bump (suggested: ${suggested}):`,
-      choices: [
-        { value: "patch", name: `patch → ${bumpVersion(currentVersion, "patch")}` },
-        { value: "minor", name: `minor → ${bumpVersion(currentVersion, "minor")}` },
-        { value: "major", name: `major → ${bumpVersion(currentVersion, "major")}` },
-      ],
-      default: suggested,
-    }) as "major" | "minor" | "patch";
+    // Determine new version from flags or prompt
+    let newVersion: string;
 
-    const newVersion = bumpVersion(currentVersion, bump);
+    if (options.version) {
+      // Explicit version provided
+      newVersion = options.version;
+    } else if (options.bump) {
+      // Bump type provided
+      if (!["patch", "minor", "major"].includes(options.bump)) {
+        console.error(`Invalid bump type: ${options.bump}. Use: patch, minor, or major`);
+        process.exit(1);
+      }
+      newVersion = bumpVersion(currentVersion, options.bump as "major" | "minor" | "patch");
+    } else {
+      // Prompt for bump type
+      const bump = await select({
+        message: `Version bump (suggested: ${suggested}):`,
+        choices: [
+          { value: "patch", name: `patch → ${bumpVersion(currentVersion, "patch")}` },
+          { value: "minor", name: `minor → ${bumpVersion(currentVersion, "minor")}` },
+          { value: "major", name: `major → ${bumpVersion(currentVersion, "major")}` },
+        ],
+        default: suggested,
+      }) as "major" | "minor" | "patch";
+      newVersion = bumpVersion(currentVersion, bump);
+    }
+
     const notes = buildReleaseNotes(commits);
 
     console.log(`\n${dim("───")} ${bold(`v${newVersion}`)} ${dim("───")}\n`);
@@ -170,14 +193,17 @@ export async function releaseCommand(options: { dryRun?: boolean } = {}): Promis
       return;
     }
 
-    const confirmed = await confirm({
-      message: `Release v${newVersion}?`,
-      default: true,
-    });
+    // Confirm unless --yes
+    if (!options.yes) {
+      const confirmed = await confirm({
+        message: `Release v${newVersion}?`,
+        default: true,
+      });
 
-    if (!confirmed) {
-      console.log("Aborted.");
-      return;
+      if (!confirmed) {
+        console.log("Aborted.");
+        return;
+      }
     }
 
     // 1. Update package.json version
@@ -204,8 +230,8 @@ export async function releaseCommand(options: { dryRun?: boolean } = {}): Promis
     execSync("git push origin HEAD --tags", { stdio: "inherit" });
     console.log(green("✓ Pushed to remote"));
 
-    // 6. Create GitHub release
-    const createRelease = await confirm({
+    // 6. Create GitHub release (auto-create with --yes)
+    const createRelease = options.yes || await confirm({
       message: "Create GitHub release? (triggers npm publish)",
       default: true,
     });

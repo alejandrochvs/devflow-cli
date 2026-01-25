@@ -2,7 +2,12 @@ import { confirm } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { bold, dim, green, yellow } from "../colors.js";
 
-export async function undoCommand(options: { dryRun?: boolean } = {}): Promise<void> {
+export interface UndoOptions {
+  dryRun?: boolean;
+  yes?: boolean;
+}
+
+export async function undoCommand(options: UndoOptions = {}): Promise<void> {
   try {
     // Check if there are commits to undo
     try {
@@ -28,14 +33,17 @@ export async function undoCommand(options: { dryRun?: boolean } = {}): Promise<v
       return;
     }
 
-    const confirmed = await confirm({
-      message: "Undo this commit? (changes will remain staged)",
-      default: true,
-    });
+    // Confirm (skip if --yes)
+    if (!options.yes) {
+      const confirmed = await confirm({
+        message: "Undo this commit? (changes will remain staged)",
+        default: true,
+      });
 
-    if (!confirmed) {
-      console.log("Aborted.");
-      return;
+      if (!confirmed) {
+        console.log("Aborted.");
+        return;
+      }
     }
 
     execSync("git reset --soft HEAD~1", { stdio: "inherit" });

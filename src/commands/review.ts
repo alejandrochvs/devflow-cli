@@ -3,6 +3,12 @@ import { execSync } from "child_process";
 import { bold, dim, green, cyan, yellow } from "../colors.js";
 import { checkGhInstalled } from "../git.js";
 
+export interface ReviewOptions {
+  pr?: string;
+  action?: string;
+  comment?: string;
+}
+
 interface PrInfo {
   number: number;
   title: string;
@@ -36,7 +42,7 @@ function getPrDiffStat(number: number): string {
   }
 }
 
-export async function reviewCommand(): Promise<void> {
+export async function reviewCommand(options: ReviewOptions = {}): Promise<void> {
   try {
     checkGhInstalled();
 
@@ -47,17 +53,29 @@ export async function reviewCommand(): Promise<void> {
       return;
     }
 
-    console.log(`\n${dim("───")} ${bold("Open PRs")} ${dim("───")}\n`);
+    // Get PR number from flag or prompt
+    let prNumber: number;
+    if (options.pr) {
+      const prNum = parseInt(options.pr, 10);
+      const found = prs.find((p) => p.number === prNum);
+      if (!found) {
+        console.error(`PR #${options.pr} not found in open PRs.`);
+        process.exit(1);
+      }
+      prNumber = prNum;
+    } else {
+      console.log(`\n${dim("───")} ${bold("Open PRs")} ${dim("───")}\n`);
 
-    const selected = await select({
-      message: "Select a PR to review:",
-      choices: prs.map((pr) => ({
-        value: pr.number,
-        name: `#${pr.number} ${pr.title} ${dim(`(${pr.author.login} · +${pr.additions}/-${pr.deletions})`)}`,
-      })),
-    });
+      prNumber = await select({
+        message: "Select a PR to review:",
+        choices: prs.map((pr) => ({
+          value: pr.number,
+          name: `#${pr.number} ${pr.title} ${dim(`(${pr.author.login} · +${pr.additions}/-${pr.deletions})`)}`,
+        })),
+      });
+    }
 
-    const pr = prs.find((p) => p.number === selected)!;
+    const pr = prs.find((p) => p.number === prNumber)!;
 
     console.log(`\n${dim("───")} ${cyan(`#${pr.number}`)} ${bold(pr.title)} ${dim("───")}\n`);
 
@@ -68,17 +86,27 @@ export async function reviewCommand(): Promise<void> {
       console.log("");
     }
 
-    const action = await select({
-      message: "What would you like to do?",
-      choices: [
-        { value: "checkout", name: "Checkout this branch locally" },
-        { value: "approve", name: "Approve this PR" },
-        { value: "comment", name: "Leave a comment" },
-        { value: "request-changes", name: "Request changes" },
-        { value: "view", name: "Open in browser" },
-        { value: "done", name: "Done" },
-      ],
-    });
+    // Get action from flag or prompt
+    let action: string;
+    if (options.action) {
+      if (!["checkout", "approve", "comment", "request-changes", "view"].includes(options.action)) {
+        console.error(`Invalid action: ${options.action}. Use: checkout, approve, comment, request-changes, or view`);
+        process.exit(1);
+      }
+      action = options.action;
+    } else {
+      action = await select({
+        message: "What would you like to do?",
+        choices: [
+          { value: "checkout", name: "Checkout this branch locally" },
+          { value: "approve", name: "Approve this PR" },
+          { value: "comment", name: "Leave a comment" },
+          { value: "request-changes", name: "Request changes" },
+          { value: "view", name: "Open in browser" },
+          { value: "done", name: "Done" },
+        ],
+      });
+    }
 
     switch (action) {
       case "checkout":
@@ -87,7 +115,7 @@ export async function reviewCommand(): Promise<void> {
         break;
 
       case "approve": {
-        const approveBody = await input({
+        const approveBody = options.comment ?? await input({
           message: "Approval comment (optional):",
         });
         const approveFlag = approveBody.trim()
@@ -99,10 +127,14 @@ export async function reviewCommand(): Promise<void> {
       }
 
       case "comment": {
-        const comment = await input({
+        const comment = options.comment ?? await input({
           message: "Comment:",
           validate: (val) => val.trim().length > 0 || "Comment is required",
         });
+        if (!comment.trim()) {
+          console.error("Comment is required.");
+          process.exit(1);
+        }
         execSync(`gh pr comment ${pr.number} --body ${JSON.stringify(comment.trim())}`, {
           stdio: "inherit",
         });
@@ -111,10 +143,14 @@ export async function reviewCommand(): Promise<void> {
       }
 
       case "request-changes": {
-        const changesBody = await input({
+        const changesBody = options.comment ?? await input({
           message: "Describe requested changes:",
           validate: (val) => val.trim().length > 0 || "Description is required",
         });
+        if (!changesBody.trim()) {
+          console.error("Description is required.");
+          process.exit(1);
+        }
         execSync(
           `gh pr review ${pr.number} --request-changes --body ${JSON.stringify(changesBody.trim())}`,
           { stdio: "inherit" }

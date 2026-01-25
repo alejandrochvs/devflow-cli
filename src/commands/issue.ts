@@ -156,25 +156,71 @@ function formatIssuePreview(data: IssueData): string {
   return lines.join("\n");
 }
 
-export async function issueCommand(options: { dryRun?: boolean } = {}): Promise<void> {
+export interface IssueOptions {
+  dryRun?: boolean;
+  type?: string;
+  title?: string;
+  body?: string;
+  json?: string;
+  createBranch?: boolean;
+  branchDesc?: string;
+  yes?: boolean;
+}
+
+export async function issueCommand(options: IssueOptions = {}): Promise<void> {
   try {
     checkGhInstalled();
     const config = loadConfig();
     const issueTypes = config.issueTypes;
     const branchFormat = config.branchFormat;
 
-    // Select issue type
-    const issueType = await select({
-      message: "Select issue type:",
-      choices: issueTypes.map((t) => ({
-        value: t,
-        name: t.label,
-      })),
-    });
+    // Get issue type from flag or prompt
+    let issueType: IssueType;
+    if (options.type) {
+      const found = issueTypes.find((t) => t.value === options.type);
+      if (!found) {
+        console.error(`Unknown issue type: ${options.type}. Available types: ${issueTypes.map((t) => t.value).join(", ")}`);
+        process.exit(1);
+      }
+      issueType = found;
+    } else {
+      issueType = await select({
+        message: "Select issue type:",
+        choices: issueTypes.map((t) => ({
+          value: t,
+          name: t.label,
+        })),
+      });
+    }
 
-    // Collect type-specific data
-    console.log("");
-    const { title, body } = await collectIssueData(issueType);
+    let title: string;
+    let body: string;
+
+    // If --title and --body provided, use them directly
+    if (options.title && options.body) {
+      title = options.title;
+      body = options.body;
+    } else if (options.json) {
+      // Parse JSON and apply template
+      try {
+        const values = JSON.parse(options.json) as Record<string, string | string[]>;
+        body = applyTemplate(issueType.template, values);
+
+        // Determine title from JSON values
+        const titleField = issueType.fields.find((f) => f.required) || issueType.fields[0];
+        const titleValue = values[titleField?.name || ""];
+        title = options.title || (Array.isArray(titleValue) ? titleValue[0] || "" : String(titleValue || "").trim());
+      } catch {
+        console.error("Invalid JSON provided to --json flag");
+        process.exit(1);
+      }
+    } else {
+      // Collect type-specific data interactively
+      console.log("");
+      const collected = await collectIssueData(issueType);
+      title = options.title || collected.title;
+      body = collected.body;
+    }
 
     // Determine labels
     const labels = [issueType.labelColor];
@@ -195,14 +241,17 @@ export async function issueCommand(options: { dryRun?: boolean } = {}): Promise<
       return;
     }
 
-    const confirmed = await confirm({
-      message: "Create this issue?",
-      default: true,
-    });
+    // Confirm (skip if --yes)
+    if (!options.yes) {
+      const confirmed = await confirm({
+        message: "Create this issue?",
+        default: true,
+      });
 
-    if (!confirmed) {
-      console.log("Aborted.");
-      process.exit(0);
+      if (!confirmed) {
+        console.log("Aborted.");
+        process.exit(0);
+      }
     }
 
     // Create the issue using gh CLI
@@ -217,22 +266,40 @@ export async function issueCommand(options: { dryRun?: boolean } = {}): Promise<
 
     console.log(green(`\n✓ Issue created: ${result}`));
 
-    // Offer to create a branch
-    const createBranch = await confirm({
-      message: "Create a branch and start working on this issue?",
-      default: true,
-    });
+    // Handle branch creation from flag or prompt
+    let shouldCreateBranch: boolean;
+    if (options.createBranch !== undefined) {
+      shouldCreateBranch = options.createBranch;
+    } else if (options.yes) {
+      shouldCreateBranch = false;
+    } else {
+      shouldCreateBranch = await confirm({
+        message: "Create a branch and start working on this issue?",
+        default: true,
+      });
+    }
 
-    if (createBranch) {
-      const description = await input({
-        message: "Short branch description:",
-        default: title
+    if (shouldCreateBranch) {
+      let description: string;
+      if (options.branchDesc) {
+        description = options.branchDesc;
+      } else if (options.yes) {
+        description = title
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/^-|-$/g, "")
-          .slice(0, 50),
-        validate: (val) => val.trim().length > 0 || "Description is required",
-      });
+          .slice(0, 50);
+      } else {
+        description = await input({
+          message: "Short branch description:",
+          default: title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "")
+            .slice(0, 50),
+          validate: (val) => val.trim().length > 0 || "Description is required",
+        });
+      }
 
       const kebab = description
         .trim()
@@ -250,41 +317,48 @@ export async function issueCommand(options: { dryRun?: boolean } = {}): Promise<
 
       console.log(`\n${dim("Branch:")} ${cyan(branchName)}`);
 
-      const confirmBranch = await confirm({
-        message: "Create this branch?",
-        default: true,
-      });
+      // Confirm branch creation (skip if --yes)
+      let confirmBranch = true;
+      if (!options.yes) {
+        confirmBranch = await confirm({
+          message: "Create this branch?",
+          default: true,
+        });
+      }
 
       if (confirmBranch) {
         execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
         console.log(green(`✓ Branch created: ${branchName}`));
 
-        // Offer test plan for feature-like issues (user-story, feature) and bugs
-        const isFeatureType = issueType.value === "user-story" || issueType.value === "feature";
-        const isBugType = issueType.value === "bug";
-        if (isFeatureType || isBugType) {
-          const addTestPlan = await confirm({
-            message: "Add test plan steps?",
-            default: false,
-          });
+        // Skip test plan prompts if --yes is provided
+        if (!options.yes) {
+          // Offer test plan for feature-like issues (user-story, feature) and bugs
+          const isFeatureType = issueType.value === "user-story" || issueType.value === "feature";
+          const isBugType = issueType.value === "bug";
+          if (isFeatureType || isBugType) {
+            const addTestPlan = await confirm({
+              message: "Add test plan steps?",
+              default: false,
+            });
 
-          if (addTestPlan) {
-            const steps: string[] = [];
-            console.log(dim("\nAdd testing steps. Empty line to finish.\n"));
-            let adding = true;
-            while (adding) {
-              const step = await input({
-                message: `Step ${steps.length + 1}${steps.length > 0 ? " (blank to finish)" : ""}:`,
-              });
-              if (!step.trim()) {
-                adding = false;
-              } else {
-                steps.push(step.trim());
+            if (addTestPlan) {
+              const steps: string[] = [];
+              console.log(dim("\nAdd testing steps. Empty line to finish.\n"));
+              let adding = true;
+              while (adding) {
+                const step = await input({
+                  message: `Step ${steps.length + 1}${steps.length > 0 ? " (blank to finish)" : ""}:`,
+                });
+                if (!step.trim()) {
+                  adding = false;
+                } else {
+                  steps.push(step.trim());
+                }
               }
-            }
-            if (steps.length > 0) {
-              setTestPlan(branchName, steps);
-              console.log(green(`✓ Saved ${steps.length} test plan step${steps.length > 1 ? "s" : ""}`));
+              if (steps.length > 0) {
+                setTestPlan(branchName, steps);
+                console.log(green(`✓ Saved ${steps.length} test plan step${steps.length > 1 ? "s" : ""}`));
+              }
             }
           }
         }

@@ -133,7 +133,13 @@ function formatChangelog(version: string, entries: ChangelogEntry[], date: strin
   return lines.join("\n");
 }
 
-export async function changelogCommand(options: { dryRun?: boolean } = {}): Promise<void> {
+export interface ChangelogOptions {
+  dryRun?: boolean;
+  version?: string;
+  yes?: boolean;
+}
+
+export async function changelogCommand(options: ChangelogOptions = {}): Promise<void> {
   try {
     const latestTag = getLatestTag();
     const commits = getCommitsSinceTag(latestTag);
@@ -156,11 +162,22 @@ export async function changelogCommand(options: { dryRun?: boolean } = {}): Prom
       return;
     }
 
-    const version = await input({
-      message: "Version for this changelog entry:",
-      default: latestTag ? bumpVersion(latestTag, entries) : "0.1.0",
-      validate: (val) => val.trim().length > 0 || "Version is required",
-    });
+    // Get version from flag or prompt
+    let version: string;
+    if (options.version) {
+      version = options.version;
+    } else {
+      const defaultVersion = latestTag ? bumpVersion(latestTag, entries) : "0.1.0";
+      if (options.yes) {
+        version = defaultVersion;
+      } else {
+        version = await input({
+          message: "Version for this changelog entry:",
+          default: defaultVersion,
+          validate: (val) => val.trim().length > 0 || "Version is required",
+        });
+      }
+    }
 
     const date = new Date().toISOString().split("T")[0];
     const changelog = formatChangelog(version.trim(), entries, date);
@@ -173,10 +190,16 @@ export async function changelogCommand(options: { dryRun?: boolean } = {}): Prom
       return;
     }
 
-    const writeFile = await confirm({
-      message: "Write to CHANGELOG.md?",
-      default: true,
-    });
+    // Confirm (skip if --yes)
+    let writeFile: boolean;
+    if (options.yes) {
+      writeFile = true;
+    } else {
+      writeFile = await confirm({
+        message: "Write to CHANGELOG.md?",
+        default: true,
+      });
+    }
 
     if (writeFile) {
       const changelogPath = "CHANGELOG.md";
