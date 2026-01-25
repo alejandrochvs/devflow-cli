@@ -1,6 +1,13 @@
 # Changelog
 
 
+
+## [1.1.0] - 2026-01-25
+
+### Other
+
+- Add non-interactive flags to all commands for AI agents (#1)
+
 ## [1.0.0] - 2026-01-25
 
 ### Other
