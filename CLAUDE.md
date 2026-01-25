@@ -7,21 +7,24 @@ This is devflow-cli, an interactive CLI for Git workflow automation. When workin
 ## Using DevFlow Commands
 
 **Always prefer devflow commands over raw git for:**
+- Project issues: `devflow issues` to list/work on issues
+- Create issues: `devflow issue` instead of `gh issue create`
 - Branches: `devflow branch` instead of `git checkout -b`
 - Commits: `devflow commit` instead of `git commit`
 - PRs: `devflow pr` instead of `gh pr create`
-- Issues: `devflow issue` instead of `gh issue create`
 
 ## Quick Reference
 
 | Task | Command |
 |------|---------|
+| Check status | `devflow status` |
+| List project issues | `devflow issues` |
+| Start work on issue | `devflow issues --work` |
+| Create new issue | `devflow issue` |
 | New branch | `devflow branch` |
 | Commit changes | `devflow commit` or `devflow commit -m "message"` |
 | Create/update PR | `devflow pr` |
-| Create issue | `devflow issue` |
 | Amend last commit | `devflow amend` |
-| Check status | `devflow status` |
 | View PR comments | `devflow comments` |
 
 ## Commit Format
@@ -30,16 +33,18 @@ This project uses: `{type}[{ticket}]({scope}): {message}`
 
 Example: `feat[ENV-123](auth): add OAuth2 login`
 
-## Before Making Changes
+## Before Making Changes (Issue-First Workflow)
 
 1. Check current status: `devflow status`
-2. Create a branch if needed: `devflow branch`
+2. Check project board: `devflow issues`
+3. Start work on existing issue: `devflow issues --work --issue <N> --yes`
+4. Or create new issue with branch: `devflow issue --type task --title "..." --create-branch --yes`
 
 ## After Making Changes
 
 1. Stage files: `git add <files>`
 2. Commit: `devflow commit`
-3. When ready: `devflow pr`
+3. When ready: `devflow pr` (auto-moves issue to "In Review")
 
 ## Dry Run
 
