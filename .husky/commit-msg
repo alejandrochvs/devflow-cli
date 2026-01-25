@@ -1,0 +1,7 @@
+npx --no -- commitlint --edit $1 || {
+  echo ""
+  echo "  Commit message does not follow the required format."
+  echo "  Use: devflow commit"
+  echo ""
+  exit 1
+}

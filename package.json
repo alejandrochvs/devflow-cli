@@ -14,7 +14,8 @@
     "prepublishOnly": "npm run build",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "prepare": "husky"
   },
   "keywords": [
     "cli",
@@ -44,7 +45,10 @@
     "commander": "^13.1.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.3.1",
+    "@commitlint/config-conventional": "^20.3.1",
     "@types/node": "^22.0.0",
+    "husky": "^9.1.7",
     "typescript": "~5.9.2",
     "vitepress": "^1.6.4",
     "vitest": "^4.0.18"
