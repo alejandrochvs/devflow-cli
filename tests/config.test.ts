@@ -135,6 +135,60 @@ describe("validateConfig", () => {
     });
     expect(warnings).toEqual([]);
   });
+
+  // Tests for project config
+  it("warns on project enabled without number", () => {
+    const warnings = validateConfig({
+      project: { enabled: true, statusField: "Status", statuses: { todo: "Todo", inProgress: "In Progress", inReview: "In Review", done: "Done" } },
+    });
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain("project.number");
+  });
+
+  it("warns on project enabled without statusField", () => {
+    const warnings = validateConfig({
+      project: { enabled: true, number: 1, statuses: { todo: "Todo", inProgress: "In Progress", inReview: "In Review", done: "Done" } },
+    });
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain("statusField");
+  });
+
+  it("warns on project enabled without statuses", () => {
+    const warnings = validateConfig({
+      project: { enabled: true, number: 1, statusField: "Status" },
+    });
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain("statuses");
+  });
+
+  it("warns on project statuses missing required keys", () => {
+    const warnings = validateConfig({
+      project: { enabled: true, number: 1, statusField: "Status", statuses: { todo: "Todo" } },
+    });
+    expect(warnings).toHaveLength(3); // missing inProgress, inReview, done
+    expect(warnings.some((w) => w.field.includes("inProgress"))).toBe(true);
+    expect(warnings.some((w) => w.field.includes("inReview"))).toBe(true);
+    expect(warnings.some((w) => w.field.includes("done"))).toBe(true);
+  });
+
+  it("accepts valid project config", () => {
+    const warnings = validateConfig({
+      project: {
+        enabled: true,
+        number: 1,
+        statusField: "Status",
+        statuses: { todo: "Todo", inProgress: "In Progress", inReview: "In Review", done: "Done" },
+      },
+    });
+    expect(warnings).toEqual([]);
+  });
+
+  it("accepts disabled project config without other fields", () => {
+    const warnings = validateConfig({
+      project: { enabled: false },
+    });
+    expect(warnings).toEqual([]);
+  });
 });
 
 describe("presets", () => {

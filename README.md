@@ -251,6 +251,54 @@ Labels: feature
 
 Requires `gh` CLI.
 
+### `devflow issues` (alias: `is`)
+
+List and manage issues from your GitHub Project board. Enables issue-first development with automatic status tracking.
+
+**Prerequisites:**
+- GitHub Project (v2) linked to your repository
+- `project` configuration in `.devflow/config.json`
+
+**Commands:**
+```bash
+# List Todo and In Progress items from project board
+devflow issues
+
+# Filter by status
+devflow issues --status todo
+devflow issues --status in-progress
+devflow issues --status in-review
+
+# Show unassigned Todo items
+devflow issues --available
+
+# Start work on an issue (assigns to you, moves to In Progress, creates branch)
+devflow issues --work
+
+# Non-interactive: work on specific issue
+devflow issues --work --issue 123 --branch-desc "add-auth" --yes
+```
+
+**Issue-First Workflow:**
+```bash
+# 1. See available work
+devflow issues
+
+# 2. Pick an issue and start working
+devflow issues --work --issue 42 --yes
+
+# 3. Make changes and commit
+git add <files>
+devflow commit
+
+# 4. Create PR (auto-moves issue to "In Review")
+devflow pr
+```
+
+When you create a PR linked to an issue, devflow automatically moves the issue to "In Review" status on the project board.
+
+Requires `gh` CLI with project permissions (`gh auth refresh -s project`).
+
 ### `devflow stash` (alias: `st`)
 
 Named stash management with an interactive interface.
@@ -394,6 +442,7 @@ eval "$(devflow completions --shell bash)"
 | `devflow review` | `devflow rv` |
 | `devflow comments` | `devflow cm` |
 | `devflow issue` | `devflow i` |
+| `devflow issues` | `devflow is` |
 | `devflow stash` | `devflow st` |
 | `devflow worktree` | `devflow wt` |
 | `devflow log` | `devflow l` |
@@ -416,6 +465,7 @@ devflow merge --dry-run
 devflow cleanup --dry-run
 devflow changelog --dry-run
 devflow issue --dry-run
+devflow issues --dry-run
 ```
 
 ## Configuration
@@ -445,7 +495,21 @@ Create a `.devflow/config.json` in your project (or run `devflow init`):
     "sections": ["summary", "ticket", "type", "screenshots", "testPlan", "checklist"],
     "screenshotsTable": true
   },
-  "prReviewers": ["copilot"]
+  "prReviewers": ["copilot"],
+  "ticketProvider": {
+    "type": "github"
+  },
+  "project": {
+    "enabled": true,
+    "number": 1,
+    "statusField": "Status",
+    "statuses": {
+      "todo": "Todo",
+      "inProgress": "In Progress",
+      "inReview": "In Review",
+      "done": "Done"
+    }
+  }
 }
 ```
 
@@ -463,6 +527,11 @@ Create a `.devflow/config.json` in your project (or run `devflow init`):
 | `prTemplate.sections` | PR body sections to include | All sections |
 | `prTemplate.screenshotsTable` | Include before/after screenshots table | `true` |
 | `prReviewers` | Default PR reviewers (GitHub usernames) | — |
+| `ticketProvider.type` | Ticket provider type (currently `"github"`) | — |
+| `project.enabled` | Enable GitHub Projects v2 integration | `false` |
+| `project.number` | GitHub Project number (from URL) | — |
+| `project.statusField` | Name of the status field in your project | `"Status"` |
+| `project.statuses` | Mapping of status keys to your project's status names | — |
 
 ### Shareable Configs (`extends`)
 
