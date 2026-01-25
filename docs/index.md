@@ -12,6 +12,9 @@ hero:
     - theme: alt
       text: View on GitHub
       link: https://github.com/alejandrochvs/devflow-cli
+    - theme: alt
+      text: Sponsor
+      link: https://github.com/sponsors/alejandrochvs
 
 features:
   - icon: 📝

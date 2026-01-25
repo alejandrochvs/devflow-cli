@@ -1,5 +1,11 @@
 # @alejandrochaves/devflow-cli
 
+[![npm downloads](https://img.shields.io/npm/dm/@alejandrochaves/devflow-cli)](https://www.npmjs.com/package/@alejandrochaves/devflow-cli)
+[![npm version](https://img.shields.io/npm/v/@alejandrochaves/devflow-cli)](https://www.npmjs.com/package/@alejandrochaves/devflow-cli)
+[![license](https://img.shields.io/npm/l/@alejandrochaves/devflow-cli)](https://github.com/alejandrochvs/devflow-cli/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/alejandrochvs/devflow-cli)](https://github.com/alejandrochvs/devflow-cli)
+[![node version](https://img.shields.io/node/v/@alejandrochaves/devflow-cli)](https://nodejs.org/)
+
 Interactive CLI for branch creation, conventional commits, and PR management.
 
 ## Install
@@ -596,6 +602,16 @@ Plugins receive the Commander `program` instance and can add commands, options, 
 - Node.js >= 20.12
 - Git
 - [GitHub CLI (gh)](https://cli.github.com/) — required for the `pr` command
+
+## Sponsors
+
+Support this project by becoming a sponsor. Your logo will show up here with a link to your website.
+
+[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor-GitHub-%23EA4AAA?logo=github)](https://github.com/sponsors/alejandrochvs)
+[![Sponsor on Open Collective](https://img.shields.io/badge/Sponsor-Open%20Collective-%237FADF2?logo=opencollective)](https://opencollective.com/devflow-cli)
+
+<!-- sponsors -->
+<!-- sponsors-end -->
 
 ## License
 
