@@ -34,6 +34,20 @@ export interface TicketProviderConfig {
   [key: string]: unknown;
 }
 
+export interface ProjectStatusMap {
+  todo: string;
+  inProgress: string;
+  inReview: string;
+  done: string;
+}
+
+export interface ProjectConfig {
+  enabled: boolean;
+  number: number;
+  statusField: string;
+  statuses: ProjectStatusMap;
+}
+
 export interface DevflowConfig {
   ticketBaseUrl?: string;
   scopes: Scope[];
@@ -47,6 +61,7 @@ export interface DevflowConfig {
   branchFormat: string;
   issueTypes: IssueType[];
   ticketProvider?: TicketProviderConfig;
+  project?: ProjectConfig;
 }
 
 export interface PrTemplate {
@@ -344,7 +359,7 @@ export function validateConfig(raw: Record<string, unknown>): ConfigWarning[] {
   const validFields = [
     "extends", "ticketBaseUrl", "scopes", "branchTypes", "commitTypes",
     "checklist", "commitFormat", "prTemplate", "prReviewers",
-    "preset", "branchFormat", "issueTypes", "ticketProvider",
+    "preset", "branchFormat", "issueTypes", "ticketProvider", "project",
   ];
 
   for (const key of Object.keys(raw)) {
@@ -414,6 +429,28 @@ export function validateConfig(raw: Record<string, unknown>): ConfigWarning[] {
       if (!validTypes.includes(tp.type)) {
         warnings.push({ field: "ticketProvider.type", message: `Unknown provider type "${tp.type}". Valid: ${validTypes.join(", ")}` });
       }
+    }
+  }
+
+  // Validate project config
+  if (raw.project) {
+    const proj = raw.project as Record<string, unknown>;
+    if (proj.enabled && !proj.number) {
+      warnings.push({ field: "project", message: "project.enabled is true but project.number is missing" });
+    }
+    if (proj.enabled && !proj.statusField) {
+      warnings.push({ field: "project.statusField", message: "project.statusField is required when project is enabled" });
+    }
+    if (proj.statuses) {
+      const statuses = proj.statuses as Record<string, unknown>;
+      const required = ["todo", "inProgress", "inReview", "done"];
+      for (const key of required) {
+        if (!statuses[key]) {
+          warnings.push({ field: `project.statuses.${key}`, message: `Missing status mapping for "${key}"` });
+        }
+      }
+    } else if (proj.enabled) {
+      warnings.push({ field: "project.statuses", message: "project.statuses is required when project is enabled" });
     }
   }
 
@@ -500,6 +537,7 @@ export function loadConfig(cwd: string = process.cwd()): DevflowConfig {
       branchFormat: raw.branchFormat ?? presetDefaults?.branchFormat ?? DEFAULT_CONFIG.branchFormat,
       issueTypes: raw.issueTypes ?? presetDefaults?.issueTypes ?? DEFAULT_CONFIG.issueTypes,
       ticketProvider: raw.ticketProvider as TicketProviderConfig | undefined,
+      project: raw.project as ProjectConfig | undefined,
     };
   } catch {
     console.error(yellow("⚠ Failed to parse .devflow/config.json, using defaults."));

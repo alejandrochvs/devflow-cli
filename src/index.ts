@@ -23,6 +23,7 @@ import { statsCommand } from "./commands/stats.js";
 import { lintConfigCommand } from "./commands/lint-config.js";
 import { commentsCommand } from "./commands/comments.js";
 import { issueCommand } from "./commands/issue.js";
+import { issuesCommand } from "./commands/issues.js";
 import { updateCommand } from "./commands/update.js";
 import { loadPlugins } from "./plugins.js";
 import { checkForUpdates } from "./update-notifier.js";
@@ -172,6 +173,19 @@ program
   .action((opts) => issueCommand(opts));
 
 program
+  .command("issues")
+  .alias("is")
+  .description("List and manage GitHub project board issues")
+  .option("--status <status>", "Filter by status: todo, in-progress, in-review, done")
+  .option("--available", "Show unassigned Todo items")
+  .option("--work", "Start work on an issue (assign + move status + create branch)")
+  .option("--issue <number>", "Issue number (with --work)")
+  .option("--branch-desc <desc>", "Branch description (with --work)")
+  .option("--dry-run", "Preview without making changes")
+  .option("--yes", "Skip confirmation prompts")
+  .action((opts) => issuesCommand(opts));
+
+program
   .command("stash")
   .alias("st")
   .description("Save, pop, apply, or drop named stashes")
@@ -287,7 +301,7 @@ function generateBashCompletions(): string {
 # Add to ~/.bashrc: eval "$(devflow completions --shell bash)"
 _devflow_completions() {
   local cur="\${COMP_WORDS[COMP_CWORD]}"
-  local commands="branch commit pr amend undo fixup merge release review comments issue stash worktree log status test-plan changelog cleanup stats lint-config init doctor update completions"
+  local commands="branch commit pr amend undo fixup merge release review comments issue issues stash worktree log status test-plan changelog cleanup stats lint-config init doctor update completions"
 
   if [ "\${COMP_CWORD}" -eq 1 ]; then
     COMPREPLY=($(compgen -W "\${commands}" -- "\${cur}"))
@@ -315,6 +329,7 @@ _devflow() {
     'review:List and interact with PRs (alias: rv)'
     'comments:Show PR reviews and inline comments (alias: cm)'
     'issue:Create GitHub issue with Scrum templates (alias: i)'
+    'issues:List and manage project board issues (alias: is)'
     'stash:Manage named stashes (alias: st)'
     'worktree:Manage git worktrees (alias: wt)'
     'log:Interactive commit log (alias: l)'
@@ -340,7 +355,7 @@ _devflow() {
       ;;
     args)
       case "\${words[1]}" in
-        branch|commit|pr|amend|undo|fixup|merge|cleanup|changelog|issue|update)
+        branch|commit|pr|amend|undo|fixup|merge|cleanup|changelog|issue|issues|update)
           _arguments '--dry-run[Preview without executing]'
           ;;
         completions)

@@ -1,7 +1,7 @@
 import { input, confirm } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { loadConfig, DevflowConfig } from "../config.js";
-import { bold, dim, green, cyan, gray } from "../colors.js";
+import { bold, dim, green, cyan, gray, yellow } from "../colors.js";
 import {
   getBranch,
   parseBranch,
@@ -11,6 +11,7 @@ import {
   checkGhInstalled,
 } from "../git.js";
 import { getTestPlan } from "../test-plan.js";
+import { moveIssueToStatus } from "../providers/projects.js";
 
 const TYPE_LABELS: Record<string, string> = {
   feat: "Feature (new functionality)",
@@ -300,6 +301,22 @@ export async function prCommand(options: PrOptions = {}): Promise<void> {
         { input: body, stdio: ["pipe", "inherit", "inherit"] }
       );
       console.log(green("✓ PR created successfully."));
+    }
+
+    // Move linked issue to "In Review" if project integration is enabled
+    if (config.project?.enabled && ticket && ticket !== "UNTRACKED") {
+      try {
+        const issueNumber = ticket.replace(/^#/, "");
+        if (/^\d+$/.test(issueNumber)) {
+          const success = moveIssueToStatus(parseInt(issueNumber, 10), "inReview", config.project);
+          if (success) {
+            console.log(dim(`  Moved issue #${issueNumber} to "${config.project.statuses.inReview}"`));
+          }
+        }
+      } catch {
+        // Non-fatal: don't fail PR creation if project update fails
+        console.log(yellow("  ⚠ Could not update issue status"));
+      }
     }
   } catch (error) {
     if ((error as Error).name === "ExitPromptError") {
