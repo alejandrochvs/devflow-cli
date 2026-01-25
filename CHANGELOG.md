@@ -1,5 +1,12 @@
 # Changelog
 
+
+## [1.0.0] - 2026-01-25
+
+### Other
+
+- feat[UNTRACKED]!: move config to .devflow/config.json and improve init flow
+
 ## [0.6.0] - 2026-01-23
 
 ### Features
