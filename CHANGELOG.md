@@ -3,6 +3,22 @@
 
 
 
+
+## [1.3.0] - 2026-01-25
+
+### Features
+
+- add GitHub Projects v2 integration with devflow issues command
+
+### Documentation
+
+- add stats badges to homepage
+- add stats badges and sponsor links
+
+### Chores
+
+- track devflow version metadata
+
 ## [1.2.0] - 2026-01-25
 
 ### Features
