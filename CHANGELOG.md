@@ -6,6 +6,13 @@
 
 
 
+
+## [1.4.0] - 2026-01-28
+
+### Other
+
+- feat: Implement escape key for back navigation (#10)
+
 ## [1.3.2] - 2026-01-25
 
 ### Documentation
