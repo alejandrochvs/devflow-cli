@@ -3,7 +3,12 @@ import { execSync } from "child_process";
 import { loadConfig } from "../config.js";
 import { bold, dim, green, cyan, gray } from "../colors.js";
 import { setTestPlan } from "../test-plan.js";
-import { createTicketProvider, inferBranchTypeFromLabels, Ticket } from "../providers/tickets.js";
+import {
+  createTicketProvider,
+  inferBranchTypeFromLabels,
+  parseAcceptanceCriteria,
+  Ticket,
+} from "../providers/tickets.js";
 import { selectWithBack, inputWithBack, BACK_VALUE } from "../prompts.js";
 
 export function formatBranchName(
@@ -38,6 +43,23 @@ function formatIssueChoice(ticket: Ticket): { value: Ticket; name: string } {
     value: ticket,
     name: `#${ticket.id} ${ticket.title}${labels}`,
   };
+}
+
+async function promptForTestSteps(): Promise<string[]> {
+  const steps: string[] = [];
+  console.log(dim("\nAdd testing steps one at a time. Press Enter with empty text to finish.\n"));
+  let adding = true;
+  while (adding) {
+    const step = await input({
+      message: `Step ${steps.length + 1}${steps.length > 0 ? " (blank to finish)" : ""}:`,
+    });
+    if (!step.trim()) {
+      adding = false;
+    } else {
+      steps.push(step.trim());
+    }
+  }
+  return steps;
 }
 
 export interface BranchOptions {
@@ -324,29 +346,57 @@ export async function branchCommand(options: BranchOptions = {}): Promise<void> 
         console.log(green(`✓ Saved ${steps.length} test plan step${steps.length > 1 ? "s" : ""}`));
       }
     } else if (!options.yes) {
-      const addTestPlan = await confirm({
-        message: "Add test plan steps for this branch?",
-        default: false,
-      });
+      // Check if we have acceptance criteria from the issue
+      const acceptanceCriteria = state.selectedIssue
+        ? parseAcceptanceCriteria(state.selectedIssue.body)
+        : [];
 
-      if (addTestPlan) {
-        const steps: string[] = [];
-        console.log(dim("\nAdd testing steps one at a time. Press Enter with empty text to finish.\n"));
-        let adding = true;
-        while (adding) {
-          const step = await input({
-            message: `Step ${steps.length + 1}${steps.length > 0 ? " (blank to finish)" : ""}:`,
-          });
-          if (!step.trim()) {
-            adding = false;
-          } else {
-            steps.push(step.trim());
+      if (acceptanceCriteria.length > 0) {
+        // Show the acceptance criteria and ask for confirmation
+        console.log(dim("\n  Test Plan (from Acceptance Criteria):"));
+        acceptanceCriteria.forEach((item, i) => {
+          console.log(dim(`  ${i + 1}. ${item}`));
+        });
+        console.log("");
+
+        const useAC = await select({
+          message: "Use these as test plan steps?",
+          choices: [
+            { value: "yes", name: "Yes, save test plan" },
+            { value: "custom", name: "No, enter custom steps" },
+            { value: "skip", name: "Skip test plan" },
+          ],
+        });
+
+        if (useAC === "yes") {
+          setTestPlan(branchName, acceptanceCriteria);
+          console.log(green(`✓ Saved ${acceptanceCriteria.length} test plan step${acceptanceCriteria.length > 1 ? "s" : ""}`));
+          console.log(dim("  Edit later with: devflow test-plan"));
+        } else if (useAC === "custom") {
+          const steps = await promptForTestSteps();
+          if (steps.length > 0) {
+            setTestPlan(branchName, steps);
+            console.log(green(`✓ Saved ${steps.length} test plan step${steps.length > 1 ? "s" : ""}`));
+            console.log(dim("  Edit later with: devflow test-plan"));
           }
         }
-        if (steps.length > 0) {
-          setTestPlan(branchName, steps);
-          console.log(green(`✓ Saved ${steps.length} test plan step${steps.length > 1 ? "s" : ""}`));
-          console.log(dim("  Edit later with: devflow test-plan"));
+      } else {
+        // No acceptance criteria found - ask if they want to add steps
+        const addTestPlan = await select({
+          message: "Add test plan steps?",
+          choices: [
+            { value: "add", name: "Add custom steps" },
+            { value: "skip", name: "Skip" },
+          ],
+        });
+
+        if (addTestPlan === "add") {
+          const steps = await promptForTestSteps();
+          if (steps.length > 0) {
+            setTestPlan(branchName, steps);
+            console.log(green(`✓ Saved ${steps.length} test plan step${steps.length > 1 ? "s" : ""}`));
+            console.log(dim("  Edit later with: devflow test-plan"));
+          }
         }
       }
     }

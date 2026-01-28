@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { LABEL_TO_BRANCH_TYPE, inferBranchTypeFromLabels } from "../src/providers/tickets.js";
+import {
+  LABEL_TO_BRANCH_TYPE,
+  inferBranchTypeFromLabels,
+  parseAcceptanceCriteria,
+} from "../src/providers/tickets.js";
 
 describe("LABEL_TO_BRANCH_TYPE", () => {
   it("maps bug to fix", () => {
@@ -71,5 +75,94 @@ describe("inferBranchTypeFromLabels", () => {
 
   it("finds first known label in mixed array", () => {
     expect(inferBranchTypeFromLabels(["priority:high", "status:open", "bug"])).toBe("fix");
+  });
+});
+
+describe("parseAcceptanceCriteria", () => {
+  it("extracts checkbox items from acceptance criteria section", () => {
+    const body = `## User Story
+
+**As a** user
+**I want to** log in
+**So that** I can access my account
+
+## Acceptance Criteria
+
+- [ ] User can log in with email
+- [ ] User can log in with Google
+- [ ] Error messages are shown for invalid credentials
+
+## Notes
+
+Some additional notes here.`;
+
+    const result = parseAcceptanceCriteria(body);
+    expect(result).toEqual([
+      "User can log in with email",
+      "User can log in with Google",
+      "Error messages are shown for invalid credentials",
+    ]);
+  });
+
+  it("handles checked items", () => {
+    const body = `## Acceptance Criteria
+
+- [x] Completed item
+- [ ] Pending item`;
+
+    const result = parseAcceptanceCriteria(body);
+    expect(result).toEqual(["Completed item", "Pending item"]);
+  });
+
+  it("returns empty array when no acceptance criteria section", () => {
+    const body = `## User Story
+
+Some content here.`;
+
+    const result = parseAcceptanceCriteria(body);
+    expect(result).toEqual([]);
+  });
+
+  it("returns empty array for undefined body", () => {
+    expect(parseAcceptanceCriteria(undefined)).toEqual([]);
+  });
+
+  it("returns empty array for empty body", () => {
+    expect(parseAcceptanceCriteria("")).toEqual([]);
+  });
+
+  it("handles acceptance criteria at end of body", () => {
+    const body = `## Summary
+
+Some summary.
+
+## Acceptance Criteria
+
+- [ ] First item
+- [ ] Second item`;
+
+    const result = parseAcceptanceCriteria(body);
+    expect(result).toEqual(["First item", "Second item"]);
+  });
+
+  it("ignores non-checkbox items in acceptance criteria", () => {
+    const body = `## Acceptance Criteria
+
+- [ ] Checkbox item
+- Regular list item
+* Another regular item
+- [ ] Another checkbox`;
+
+    const result = parseAcceptanceCriteria(body);
+    expect(result).toEqual(["Checkbox item", "Another checkbox"]);
+  });
+
+  it("handles case-insensitive section header", () => {
+    const body = `## acceptance criteria
+
+- [ ] Item one`;
+
+    const result = parseAcceptanceCriteria(body);
+    expect(result).toEqual(["Item one"]);
   });
 });

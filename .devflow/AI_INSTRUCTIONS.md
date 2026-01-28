@@ -4,12 +4,14 @@
 
 | Task | Command |
 |------|---------|
+| Check status | `devflow status` |
+| List project issues | `devflow issues` |
+| Start work on issue | `devflow issues --work` |
+| Create new issue | `devflow issue` |
 | New branch | `devflow branch` |
 | Commit changes | `devflow commit` or `devflow commit -m "message"` |
 | Create/update PR | `devflow pr` |
-| Create issue | `devflow issue` |
 | Amend last commit | `devflow amend` |
-| Check status | `devflow status` |
 | View PR comments | `devflow comments` |
 
 ## Rules for AI Agents
@@ -18,6 +20,7 @@
    - Branches: `devflow branch` not `git checkout -b`
    - Commits: `devflow commit` not `git commit`
    - PRs: `devflow pr` not `gh pr create`
+   - Issues: `devflow issue` not `gh issue create`
 
 2. **Commit format:** `{type}[{ticket}]{breaking}({scope}): {message}`
    - Example: `feat[123](auth): add OAuth2 login`
@@ -25,165 +28,86 @@
 3. **Branch format:** `{type}/{ticket}_{description}`
    - Example: `feat/123_add-login`
 
-4. **Before making changes:**
-   - Check status: `devflow status`
-   - Create branch if needed: `devflow branch`
+4. **Use `--dry-run` to preview** any command without executing
 
-5. **After making changes:**
-   - Stage files: `git add <files>`
-   - Commit: `devflow commit`
-   - When ready: `devflow pr`
+## Issue-First Workflow
 
-6. **Use `--dry-run` to preview** any command without executing
+### Before Making Changes
 
-## Non-Interactive Mode (AI-Friendly)
+1. Check current status: `devflow status`
+2. Check project board: `devflow issues`
+3. Start work on existing issue: `devflow issues --work --issue <N> --yes`
+4. Or create new issue with branch: `devflow issue --type task --title "..." --create-branch --yes`
 
-All commands support flags to bypass interactive prompts. Use `--yes` to skip confirmations.
+### After Making Changes
 
-### Branch Command
-```bash
-devflow branch --type feat --ticket 123 --description "add-login" --yes
-devflow branch --type fix --ticket UNTRACKED --description "typo" --yes
-devflow branch --type feat --ticket 456 --description "oauth" --test-plan "Login works|Logout works" --yes
-```
-
-### Commit Command
-```bash
-devflow commit --type feat --scope auth --message "add OAuth2 login" --all --yes
-devflow commit --type fix --message "fix typo" --files "src/app.ts,src/index.ts" --yes
-devflow commit --type feat --message "add API" --breaking --breaking-desc "Changes API format" --yes
-```
-
-### PR Command
-```bash
-devflow pr --title "Add OAuth2 login" --summary "Implements OAuth2 flow" --yes
-devflow pr --title "Feature X" --base develop --ready --yes
-```
-
-### Issue Command
-```bash
-devflow issue --type bug --title "Login crashes on iOS" --body "Steps to reproduce..." --yes
-devflow issue --type user-story --json '{"asA":"user","iWant":"to login","soThat":"I can access my account"}' --yes
-devflow issue --type task --title "Update deps" --create-branch --branch-desc "update-deps" --yes
-
-# Bug with steps to reproduce (will be offered as test plan when creating branch)
-devflow issue --type bug --json '{"description":"App crashes","expected":"Should work","steps":["Open app","Click button","See crash"]}' --create-branch --yes
-```
-
-**Note:** When creating a bug issue with `--create-branch`, the steps to reproduce are automatically offered as test plan steps.
-
-### Amend Command
-```bash
-devflow amend --type fix --message "correct typo" --yes
-devflow amend --scope auth --message "add validation" --yes
-```
-
-### Undo Command
-```bash
-devflow undo --yes
-```
-
-### Fixup Command
-```bash
-devflow fixup --target abc1234 --all --yes
-devflow fixup --target abc1234 --files "src/app.ts" --auto-squash --yes
-```
-
-### Cleanup Command
-```bash
-devflow cleanup --all --yes
-devflow cleanup --branches "feat/old,fix/done" --force --yes
-```
-
-### Merge Command
-```bash
-devflow merge --method squash --yes
-devflow merge --method rebase --yes
-```
-
-### Stash Command
-```bash
-devflow stash --action save --message "WIP: feature X" --include-untracked
-devflow stash --action pop --index 0 --yes
-devflow stash --action drop --index 0 --yes
-```
-
-### Test Plan Command
-```bash
-devflow test-plan --add "Step 1|Step 2|Step 3"
-devflow test-plan --replace "New step 1|New step 2"
-devflow test-plan --clear
-devflow test-plan --show
-```
-
-### Changelog Command
-```bash
-devflow changelog --version 2.0.0 --yes
-```
-
-### Review Command
-```bash
-devflow review --pr 123 --action checkout
-devflow review --pr 123 --action approve --comment "LGTM!"
-devflow review --pr 123 --action comment --comment "Please fix the typo"
-devflow review --pr 123 --action request-changes --comment "Needs error handling"
-```
-
-### Worktree Command
-```bash
-devflow worktree --action list
-devflow worktree --action add --branch feat/new-feature --path ../project-new-feature
-devflow worktree --action remove --path ../project-old --yes
-```
-
-### Release Command
-```bash
-devflow release --bump patch --yes
-devflow release --bump minor --yes
-devflow release --version 2.0.0 --yes
-```
+1. Stage files: `git add <files>`
+2. Commit: `devflow commit`
+3. When ready: `devflow pr` (auto-moves issue to "In Review")
 
 ## Features
 
-### Auto-Creating Labels
-When creating an issue, devflow automatically creates any missing GitHub labels. No manual label setup required.
+### Test Plan from Acceptance Criteria
 
-### Bug Test Plans
-When creating a bug issue with a branch, the "steps to reproduce" are automatically offered as test plan steps:
-- **Use steps** - Directly save them as the test plan
-- **Edit/add more** - Start with bug steps and add more
-- **Skip** - Don't create a test plan
+When creating a branch from an issue that has an `## Acceptance Criteria` section with checkboxes:
 
-### Interactive Title Prompt
-Issue creation now includes an explicit title prompt with a suggested default based on the issue content.
+```markdown
+## Acceptance Criteria
+
+- [ ] User can log in with email
+- [ ] User can log in with Google
+- [ ] Error messages are shown for invalid credentials
+```
+
+DevFlow will automatically offer to use these as test plan steps. The test plan appears in your PR description.
+
+### GitHub Projects Integration
+
+DevFlow can automatically move issues on your project board:
+- **In Progress**: When you create a branch for an issue
+- **In Review**: When you open a PR
+
+Run `devflow init` to set up project integration.
+
+### Non-Interactive Mode
+
+All commands support flags to bypass interactive prompts. Use `--yes` to skip confirmations:
+
+```bash
+# Create branch without prompts
+devflow branch --type feat --ticket 123 --description "add-login" --yes
+
+# Commit without prompts
+devflow commit --type feat --scope auth --message "add login" --all --yes
+
+# Create PR without prompts
+devflow pr --title "Add login" --summary "Implements login flow" --yes
+```
 
 ## Common Workflows
 
-### New Feature
+### New Feature (with issue)
+
 ```bash
-devflow branch          # Create feature branch
+devflow issues --work       # Pick an issue and create branch
 # ... make changes ...
 git add <files>
-devflow commit          # Commit with proper format
-devflow pr              # Create pull request
+devflow commit              # Commit with proper format
+devflow pr                  # Create pull request
 ```
 
 ### Quick Fix
+
 ```bash
+devflow branch              # Create branch
 git add <files>
 devflow commit -m "fix typo in login form"
-devflow amend           # If you need to add more changes
+devflow pr
 ```
 
-### Fully Automated Workflow (for AI agents)
+### Amend Changes
+
 ```bash
-# Create branch
-devflow branch --type feat --ticket 123 --description "add-login" --yes
-
-# Make changes and commit
-git add -A
-devflow commit --type feat --scope auth --message "add login form" --yes
-
-# Create PR
-devflow pr --title "Add login form" --summary "Implements login UI" --yes
+git add <files>
+devflow amend               # Add to last commit
 ```
