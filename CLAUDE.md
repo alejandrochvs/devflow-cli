@@ -46,6 +46,10 @@ Example: `feat[ENV-123](auth): add OAuth2 login`
 2. Commit: `devflow commit`
 3. When ready: `devflow pr` (auto-moves issue to "In Review")
 
+## Test Plans
+
+When creating a branch from an issue with `## Acceptance Criteria`, devflow will offer to use those as test plan steps. These appear in the PR description.
+
 ## Dry Run
 
 Use `--dry-run` to preview any command without executing:

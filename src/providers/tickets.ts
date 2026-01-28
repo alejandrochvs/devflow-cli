@@ -6,6 +6,7 @@ export interface Ticket {
   title: string;
   labels: string[];
   url?: string;
+  body?: string;
 }
 
 export interface TicketProvider {
@@ -51,13 +52,14 @@ export class GitHubTicketProvider implements TicketProvider {
   listOpen(options?: { assignee?: string }): Ticket[] {
     try {
       const assigneeArg = options?.assignee ? `--assignee ${options.assignee}` : "--assignee @me";
-      const cmd = `gh issue list ${assigneeArg} --state open --json number,title,labels,url --limit 50`;
+      const cmd = `gh issue list ${assigneeArg} --state open --json number,title,labels,url,body --limit 50`;
       const output = execSync(cmd, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
       const issues = JSON.parse(output) as Array<{
         number: number;
         title: string;
         labels: Array<{ name: string }>;
         url: string;
+        body: string;
       }>;
 
       return issues.map((issue) => ({
@@ -65,6 +67,7 @@ export class GitHubTicketProvider implements TicketProvider {
         title: issue.title,
         labels: issue.labels.map((l) => l.name),
         url: issue.url,
+        body: issue.body,
       }));
     } catch (error) {
       // Soft fail - return empty array if gh command fails
@@ -75,13 +78,14 @@ export class GitHubTicketProvider implements TicketProvider {
 
   getById(id: string): Ticket | undefined {
     try {
-      const cmd = `gh issue view ${id} --json number,title,labels,url`;
+      const cmd = `gh issue view ${id} --json number,title,labels,url,body`;
       const output = execSync(cmd, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
       const issue = JSON.parse(output) as {
         number: number;
         title: string;
         labels: Array<{ name: string }>;
         url: string;
+        body: string;
       };
 
       return {
@@ -89,11 +93,41 @@ export class GitHubTicketProvider implements TicketProvider {
         title: issue.title,
         labels: issue.labels.map((l) => l.name),
         url: issue.url,
+        body: issue.body,
       };
     } catch {
       return undefined;
     }
   }
+}
+
+/**
+ * Extract acceptance criteria items from an issue body.
+ * Looks for a section starting with "## Acceptance Criteria" and parses
+ * markdown checkbox items (- [ ] or - [x]).
+ */
+export function parseAcceptanceCriteria(body: string | undefined): string[] {
+  if (!body) return [];
+
+  // Find the Acceptance Criteria section
+  const acMatch = body.match(/##\s*Acceptance Criteria\s*\n([\s\S]*?)(?=\n##|$)/i);
+  if (!acMatch) return [];
+
+  const acSection = acMatch[1];
+
+  // Extract checkbox items (- [ ] or - [x])
+  const checkboxRegex = /^-\s*\[[ x]\]\s*(.+)$/gim;
+  const items: string[] = [];
+  let match;
+
+  while ((match = checkboxRegex.exec(acSection)) !== null) {
+    const item = match[1].trim();
+    if (item) {
+      items.push(item);
+    }
+  }
+
+  return items;
 }
 
 export function createTicketProvider(config?: TicketProviderConfig): TicketProvider | undefined {

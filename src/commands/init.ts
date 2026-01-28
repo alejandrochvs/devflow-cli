@@ -56,6 +56,114 @@ function getGitHubIssuesUrl(): string | undefined {
   return undefined;
 }
 
+interface GitHubRepo {
+  owner: string;
+  name: string;
+}
+
+function getGitHubRepo(): GitHubRepo | undefined {
+  try {
+    const remoteUrl = execSync("git remote get-url origin", {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+
+    const sshMatch = remoteUrl.match(/git@github\.com:([^/]+)\/(.+?)(?:\.git)?$/);
+    const httpsMatch = remoteUrl.match(/https:\/\/github\.com\/([^/]+)\/(.+?)(?:\.git)?$/);
+
+    const match = sshMatch || httpsMatch;
+    if (match) {
+      return { owner: match[1], name: match[2] };
+    }
+  } catch {
+    // Not a git repo or no remote
+  }
+  return undefined;
+}
+
+function hasProjectScopes(): boolean {
+  try {
+    // Try to list projects - if it fails with scope error, we don't have permissions
+    execSync("gh project list --owner @me --limit 1", {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    return true;
+  } catch (error) {
+    const errorMessage = (error as Error).message || "";
+    return !errorMessage.includes("missing required scopes") && !errorMessage.includes("read:project");
+  }
+}
+
+interface GitHubProject {
+  number: number;
+  title: string;
+}
+
+function getRepoLinkedProjects(repo: GitHubRepo): GitHubProject[] {
+  try {
+    const query = `{
+      repository(owner: "${repo.owner}", name: "${repo.name}") {
+        projectsV2(first: 20) {
+          nodes { number title }
+        }
+      }
+    }`;
+    const result = execSync(`gh api graphql -f query='${query}'`, {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+
+    if (!result) return [];
+
+    const data = JSON.parse(result);
+    const nodes = data?.data?.repository?.projectsV2?.nodes || [];
+    return nodes.map((p: { number: number; title: string }) => ({
+      number: p.number,
+      title: p.title,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function refreshProjectScopes(): boolean {
+  try {
+    execSync("gh auth refresh -s project", {
+      stdio: "inherit",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function createAndLinkProject(repo: GitHubRepo, title: string): GitHubProject | null {
+  try {
+    // Create the project
+    const createResult = execSync(
+      `gh project create --owner ${repo.owner} --title "${title}" --format json`,
+      {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+      }
+    ).trim();
+
+    const project = JSON.parse(createResult);
+    const projectNumber = project.number;
+
+    // Link it to the repo
+    execSync(`gh project link ${projectNumber} --owner ${repo.owner} --repo ${repo.name}`, {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    return { number: projectNumber, title };
+  } catch {
+    return null;
+  }
+}
+
 function writePackageJson(cwd: string, pkg: Record<string, unknown>): void {
   const pkgPath = resolve(cwd, "package.json");
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
@@ -86,6 +194,8 @@ export async function initCommand(): Promise<void> {
       preset: PresetType;
       ticketBaseUrl: string;
       useGitHubIssues: boolean;
+      projectEnabled: boolean;
+      projectNumber: number | null;
       scopeChoice: string;
       scopes: Scope[];
       checklistChoice: string;
@@ -99,6 +209,8 @@ export async function initCommand(): Promise<void> {
       preset: "scrum",
       ticketBaseUrl: "",
       useGitHubIssues: false,
+      projectEnabled: false,
+      projectNumber: null,
       scopeChoice: "",
       scopes: [],
       checklistChoice: "",
@@ -109,7 +221,7 @@ export async function initCommand(): Promise<void> {
     };
 
     // Step-based flow with back navigation
-    type StepName = "preset" | "ticketUrl" | "githubIssues" | "scopes" | "checklist" | "formats" | "done";
+    type StepName = "preset" | "ticketUrl" | "githubIssues" | "projectSetup" | "scopes" | "checklist" | "formats" | "done";
     let currentStep: StepName = "preset";
 
     while (currentStep !== "done") {
@@ -167,8 +279,139 @@ export async function initCommand(): Promise<void> {
             currentStep = "ticketUrl";
           } else {
             state.useGitHubIssues = result === true;
-            currentStep = "scopes";
+            // If using GitHub issues, offer project integration
+            currentStep = result === true ? "projectSetup" : "scopes";
           }
+          break;
+        }
+
+        case "projectSetup": {
+          // Check if we have project scopes
+          const hasScopes = hasProjectScopes();
+
+          if (!hasScopes) {
+            console.log("\n  GitHub Projects Integration\n");
+            console.log("  Connecting to a GitHub Project enables:");
+            console.log("  • Auto-move issues to 'In Progress' when you start a branch");
+            console.log("  • Auto-move issues to 'In Review' when you open a PR");
+            console.log("  • View project issues with `devflow issues`\n");
+            console.log("  This requires the 'project' OAuth scope for your GitHub CLI.");
+            console.log("  If you skip this, you can still use GitHub Issues without board automation.\n");
+            const addScopes = await confirmWithBack({
+              message: "Authorize project access?",
+              default: true,
+              showBack: true,
+            });
+
+            if (addScopes === BACK_VALUE) {
+              currentStep = "githubIssues";
+              break;
+            }
+
+            if (addScopes === true) {
+              console.log("\nOpening GitHub to authorize project permissions...\n");
+              const success = refreshProjectScopes();
+              if (!success) {
+                console.log("⚠ Failed to add project permissions. Skipping project integration.");
+                currentStep = "scopes";
+                break;
+              }
+              console.log("✓ Project permissions added\n");
+            } else {
+              // Skip project integration
+              state.projectEnabled = false;
+              currentStep = "scopes";
+              break;
+            }
+          }
+
+          // Now we have scopes, list available projects
+          const repo = getGitHubRepo();
+          if (!repo) {
+            console.log("⚠ Could not determine repository. Skipping project integration.");
+            currentStep = "scopes";
+            break;
+          }
+
+          // First, try to get projects linked to this repo
+          const linkedProjects = getRepoLinkedProjects(repo);
+
+          if (linkedProjects.length > 0) {
+            // Show only linked projects
+            const projectResult = await selectWithBack({
+              message: "Select a GitHub Project for issue tracking:",
+              choices: [
+                ...linkedProjects.map((p) => ({
+                  value: p.number,
+                  name: `#${p.number} ${p.title}`,
+                })),
+                { value: -1, name: "Skip - don't use project integration" },
+              ],
+              showBack: true,
+            });
+
+            if (projectResult === BACK_VALUE) {
+              currentStep = "githubIssues";
+            } else if (projectResult === -1) {
+              state.projectEnabled = false;
+              currentStep = "scopes";
+            } else {
+              state.projectEnabled = true;
+              state.projectNumber = projectResult;
+              console.log(`✓ Will use project #${projectResult}\n`);
+              currentStep = "scopes";
+            }
+            break;
+          }
+
+          // No linked projects - offer to create one
+          console.log(`\n  No GitHub Projects are linked to ${repo.owner}/${repo.name}.`);
+          const createChoice = await selectWithBack({
+            message: "What would you like to do?",
+            choices: [
+              { value: "create", name: "Create a new project" },
+              { value: "skip", name: "Skip project integration for now" },
+            ],
+            showBack: true,
+          });
+
+          if (createChoice === BACK_VALUE) {
+            currentStep = "githubIssues";
+            break;
+          }
+
+          if (createChoice === "skip") {
+            state.projectEnabled = false;
+            currentStep = "scopes";
+            break;
+          }
+
+          // Ask for project name
+          const defaultProjectName = `${repo.name} Board`;
+          const projectName = await inputWithBack({
+            message: "Project name:",
+            default: defaultProjectName,
+            showBack: true,
+          });
+
+          if (projectName === BACK_VALUE) {
+            // Go back to the create/skip choice - stay on this step
+            break;
+          }
+
+          // Create and link a new project
+          console.log(`\nCreating project "${projectName}"...`);
+          const newProject = createAndLinkProject(repo, projectName);
+
+          if (newProject) {
+            console.log(`✓ Created and linked project #${newProject.number}\n`);
+            state.projectEnabled = true;
+            state.projectNumber = newProject.number;
+          } else {
+            console.log("⚠ Failed to create project. Skipping project integration.");
+            state.projectEnabled = false;
+          }
+          currentStep = "scopes";
           break;
         }
 
@@ -185,7 +428,14 @@ export async function initCommand(): Promise<void> {
           });
 
           if (result === BACK_VALUE) {
-            currentStep = state.preset === "simple" ? "preset" : "githubIssues";
+            // Go back to appropriate step based on config
+            if (state.preset === "simple") {
+              currentStep = "preset";
+            } else if (state.useGitHubIssues) {
+              currentStep = "projectSetup";
+            } else {
+              currentStep = "githubIssues";
+            }
           } else {
             state.scopeChoice = result;
             state.scopes = [];
@@ -591,6 +841,20 @@ devflow amend           # If you need to add more changes
 
     if (useGitHubIssues) {
       config.ticketProvider = { type: "github" };
+    }
+
+    if (state.projectEnabled && state.projectNumber) {
+      config.project = {
+        enabled: true,
+        number: state.projectNumber,
+        statusField: "Status",
+        statuses: {
+          todo: "Todo",
+          inProgress: "In Progress",
+          inReview: "In Review",
+          done: "Done",
+        },
+      };
     }
 
     if (preset === "custom") {
