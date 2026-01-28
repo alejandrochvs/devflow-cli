@@ -77,6 +77,14 @@ devflow branch --dry-run
 devflow pr --dry-run
 ```
 
+## Interactive Navigation
+
+All multi-step interactive commands support **back navigation**:
+
+- Press **Escape** at any prompt to return to the previous step
+
+This lets you review and change earlier choices without restarting the entire command.
+
 ## Command Aliases
 
 Most commands have short aliases for quick access:

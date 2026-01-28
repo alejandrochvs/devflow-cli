@@ -39,9 +39,34 @@ Issue types are configurable and depend on your selected preset:
 
 1. Select issue type
 2. Fill in type-specific fields (guided prompts)
-3. Preview the issue
-4. Confirm and create via `gh issue create`
-5. Optionally create a branch and start working
+3. Enter issue title (with suggested default)
+4. Preview the issue
+5. Confirm and create via `gh issue create`
+6. Optionally create a branch and start working
+
+## Features
+
+### Auto-Creating Labels
+
+When creating an issue, devflow automatically creates any missing GitHub labels. No manual label setup required - if the label (e.g., `feature`, `bug`, `task`) doesn't exist in your repository, it will be created automatically.
+
+### Bug Steps to Test Plan
+
+When creating a bug issue with a branch, the "steps to reproduce" are automatically offered as test plan steps:
+
+```
+Steps to reproduce from bug report:
+  1. Open the app
+  2. Click the login button
+  3. Observe the crash
+
+? Use these as test plan steps?
+❯ Yes, use these steps
+  Edit/add more steps
+  Skip test plan
+```
+
+This saves time by reusing the reproduction steps as your verification checklist.
 
 ## Templates
 
@@ -187,6 +212,40 @@ For User Stories and Bugs, you can also add test plan steps that will be include
 | Option | Description |
 |--------|-------------|
 | `--dry-run` | Preview the issue without creating it |
+| `--type <type>` | Issue type (e.g., `bug`, `user-story`, `task`) |
+| `--title <title>` | Issue title |
+| `--body <body>` | Issue body (use with `--title`) |
+| `--json <json>` | JSON object with field values |
+| `--create-branch` | Create a branch after issue creation |
+| `--branch-desc <desc>` | Branch description (use with `--create-branch`) |
+| `--yes` | Skip confirmation prompts |
+
+## Non-Interactive Mode
+
+All options can be combined for scripting or AI agent usage:
+
+```bash
+# Create a bug issue with full details
+devflow issue --type bug \
+  --json '{"description":"App crashes","expected":"Should work","steps":["Open app","Click button"]}' \
+  --title "App crashes on button click" \
+  --create-branch \
+  --yes
+
+# Create a user story
+devflow issue --type user-story \
+  --json '{"asA":"user","iWant":"to export data","soThat":"I can backup","criteria":["CSV format","All fields"]}' \
+  --title "Export data feature" \
+  --yes
+
+# Simple task
+devflow issue --type task \
+  --title "Update dependencies" \
+  --body "Update all npm packages to latest versions" \
+  --create-branch \
+  --branch-desc "update-deps" \
+  --yes
+```
 
 ## Custom Issue Types
 

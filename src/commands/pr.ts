@@ -12,6 +12,12 @@ import {
 } from "../git.js";
 import { getTestPlan } from "../test-plan.js";
 import { moveIssueToStatus } from "../providers/projects.js";
+import {
+  selectWithBack,
+  inputWithBack,
+  confirmWithBack,
+  BACK_VALUE,
+} from "../prompts.js";
 
 const TYPE_LABELS: Record<string, string> = {
   feat: "Feature (new functionality)",
@@ -156,64 +162,140 @@ export async function prCommand(options: PrOptions = {}): Promise<void> {
 
     if (existingPr && !options.yes) {
       console.log(`\n${cyan(`PR #${existingPr.number}`)} already exists: ${existingPr.url}`);
-      const shouldUpdate = await confirm({
+      const shouldUpdate = await confirmWithBack({
         message: "Update this PR?",
         default: true,
+        showBack: false,
       });
-      if (!shouldUpdate) {
+      if (shouldUpdate !== true) {
         process.exit(0);
       }
     }
 
     const defaultBase = getDefaultBase(branch);
 
-    // Get base branch from flag or prompt
-    let base: string;
-    if (options.base) {
-      base = options.base;
-    } else {
-      base = await input({
-        message: "Base branch:",
-        default: defaultBase,
-        validate: (val) => val.trim().length > 0 || "Base branch is required",
-      });
+    // State for the flow
+    interface PrState {
+      base: string;
+      title: string;
+      summaryInput: string;
     }
 
-    const commits = getCommits(base.trim());
+    const state: PrState = {
+      base: options.base || "",
+      title: options.title || "",
+      summaryInput: options.summary ?? "",
+    };
+
+    // Step-based flow with back navigation
+    type StepName = "base" | "title" | "summary" | "preview";
+    let currentStep: StepName = "base";
+
+    // Skip steps based on provided options
+    if (options.base) {
+      state.base = options.base;
+      currentStep = "title";
+    }
+    if (options.title) {
+      state.title = options.title;
+      if (currentStep === "title") currentStep = "summary";
+    }
+    if (options.summary !== undefined || options.yes) {
+      state.summaryInput = options.summary ?? "";
+      if (currentStep === "summary") currentStep = "preview";
+    }
+
+    // Interactive step flow
+    while (currentStep !== undefined) {
+      switch (currentStep) {
+        case "base": {
+          if (options.base) {
+            currentStep = "title";
+            break;
+          }
+          const result = await inputWithBack({
+            message: "Base branch:",
+            default: state.base || defaultBase,
+            validate: (val) => val.trim().length > 0 || "Base branch is required",
+            showBack: false, // First step
+          });
+
+          if (result === BACK_VALUE) {
+            // Can't go back from first step
+          } else {
+            state.base = result;
+            currentStep = "title";
+          }
+          break;
+        }
+
+        case "title": {
+          if (options.title) {
+            currentStep = "summary";
+            break;
+          }
+          const result = await inputWithBack({
+            message: "PR title:",
+            default: state.title || `${description.charAt(0).toUpperCase() + description.slice(1)}`,
+            validate: (val) => val.trim().length > 0 || "Title is required",
+            showBack: !options.base,
+          });
+
+          if (result === BACK_VALUE) {
+            currentStep = "base";
+          } else {
+            state.title = result;
+            currentStep = "summary";
+          }
+          break;
+        }
+
+        case "summary": {
+          if (options.summary !== undefined || options.yes) {
+            currentStep = "preview";
+            break;
+          }
+          const result = await inputWithBack({
+            message: "PR summary (optional, leave blank to use commits only):",
+            default: state.summaryInput || undefined,
+            showBack: true,
+          });
+
+          if (result === BACK_VALUE) {
+            currentStep = options.title ? "base" : "title";
+          } else {
+            state.summaryInput = result;
+            currentStep = "preview";
+          }
+          break;
+        }
+
+        case "preview": {
+          // Exit the loop to continue with preview and creation
+          currentStep = undefined as unknown as StepName;
+          break;
+        }
+
+        default:
+          currentStep = undefined as unknown as StepName;
+      }
+    }
+
+    const commits = getCommits(state.base.trim());
     const commitList = commits.length > 0
       ? commits.map((c) => `- ${c}`).join("\n")
       : "";
 
-    // Get title from flag or prompt
-    let title: string;
-    if (options.title) {
-      title = options.title;
-    } else {
-      title = await input({
-        message: "PR title:",
-        default: `${description.charAt(0).toUpperCase() + description.slice(1)}`,
-        validate: (val) => val.trim().length > 0 || "Title is required",
-      });
-    }
-
-    // Get summary from flag or prompt
-    let summaryInput: string;
-    if (options.summary !== undefined) {
-      summaryInput = options.summary;
-    } else if (options.yes) {
-      summaryInput = "";
-    } else {
-      summaryInput = await input({
-        message: "PR summary (optional, leave blank to use commits only):",
-      });
-    }
-
-    const summary = [summaryInput.trim(), commitList]
+    const summary = [state.summaryInput.trim(), commitList]
       .filter(Boolean)
       .join("\n\n");
 
     const testPlanSteps = getTestPlan(branch);
     const body = buildPrBody(config, { summary, ticket, type, commitList, testPlanSteps });
+
+    // Use state values for the rest of the function
+    const base = state.base;
+    const title = state.title;
 
     // Build preview labels
     const previewLabels: string[] = [];
@@ -244,14 +326,24 @@ export async function prCommand(options: PrOptions = {}): Promise<void> {
 
     // Confirm (skip if --yes)
     if (!options.yes) {
-      const confirmed = await confirm({
+      const confirmResult = await selectWithBack({
         message: existingPr
           ? `Update PR #${existingPr.number}?`
           : "Create this PR?",
-        default: true,
+        choices: [
+          { value: "yes", name: existingPr ? "Yes, update PR" : "Yes, create PR" },
+          { value: "no", name: "No, abort" },
+        ],
+        default: "yes",
+        showBack: true,
       });
 
-      if (!confirmed) {
+      if (confirmResult === BACK_VALUE) {
+        // Restart the flow
+        return prCommand(options);
+      }
+
+      if (confirmResult !== "yes") {
         console.log("Aborted.");
         process.exit(0);
       }

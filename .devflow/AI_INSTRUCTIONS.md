@@ -65,7 +65,12 @@ devflow pr --title "Feature X" --base develop --ready --yes
 devflow issue --type bug --title "Login crashes on iOS" --body "Steps to reproduce..." --yes
 devflow issue --type user-story --json '{"asA":"user","iWant":"to login","soThat":"I can access my account"}' --yes
 devflow issue --type task --title "Update deps" --create-branch --branch-desc "update-deps" --yes
+
+# Bug with steps to reproduce (will be offered as test plan when creating branch)
+devflow issue --type bug --json '{"description":"App crashes","expected":"Should work","steps":["Open app","Click button","See crash"]}' --create-branch --yes
 ```
+
+**Note:** When creating a bug issue with `--create-branch`, the steps to reproduce are automatically offered as test plan steps.
 
 ### Amend Command
 ```bash
@@ -137,6 +142,20 @@ devflow release --bump patch --yes
 devflow release --bump minor --yes
 devflow release --version 2.0.0 --yes
 ```
+
+## Features
+
+### Auto-Creating Labels
+When creating an issue, devflow automatically creates any missing GitHub labels. No manual label setup required.
+
+### Bug Test Plans
+When creating a bug issue with a branch, the "steps to reproduce" are automatically offered as test plan steps:
+- **Use steps** - Directly save them as the test plan
+- **Edit/add more** - Start with bug steps and add more
+- **Skip** - Don't create a test plan
+
+### Interactive Title Prompt
+Issue creation now includes an explicit title prompt with a suggested default based on the issue content.
 
 ## Common Workflows
 

@@ -17,13 +17,17 @@ Type "devflow branch"
 Enter
 Sleep 2s
 
-# Select type (feat)
+# Choose ticket number
 Down
 Enter
 Sleep 1s
 
-# Enter ticket
-Type "PROJ-123"
+# Type ticket number
+Type "PROJ-112"
+Enter
+Sleep 1s
+
+# Select type (feat)
 Enter
 Sleep 1s
 

@@ -5,6 +5,12 @@ import { bold, dim, green, cyan, gray } from "../colors.js";
 import { checkGhInstalled } from "../git.js";
 import { setTestPlan } from "../test-plan.js";
 import { formatBranchName } from "./branch.js";
+import {
+  selectWithBack,
+  inputWithBack,
+  confirmWithBack,
+  BACK_VALUE,
+} from "../prompts.js";
 
 interface IssueData {
   type: IssueType;
@@ -30,34 +36,76 @@ async function collectList(prompt: string): Promise<string[]> {
   return items;
 }
 
-async function collectFieldValue(field: IssueField): Promise<string | string[]> {
+async function collectFieldValue(
+  field: IssueField,
+  showBack: boolean,
+  currentValue?: string | string[]
+): Promise<string | string[] | typeof BACK_VALUE> {
   switch (field.type) {
-    case "input":
-      return await input({
+    case "input": {
+      const result = await inputWithBack({
         message: field.prompt,
+        default: typeof currentValue === "string" ? currentValue : undefined,
         validate: field.required ? (val) => val.trim().length > 0 || "Required" : undefined,
+        showBack,
       });
+      return result;
+    }
 
     case "multiline":
+      // Editor doesn't support back navigation easily, use input with note
+      if (showBack) {
+        const result = await inputWithBack({
+          message: `${field.prompt} (single line, or use editor for multiline)`,
+          default: typeof currentValue === "string" ? currentValue : undefined,
+          validate: field.required ? (val) => val.trim().length > 0 || "Required" : undefined,
+          showBack,
+        });
+        return result;
+      }
       return await editor({
         message: field.prompt,
         validate: field.required ? (val) => val.trim().length > 0 || "Required" : undefined,
       });
 
-    case "select":
+    case "select": {
       if (!field.options || field.options.length === 0) {
-        return await input({ message: field.prompt });
+        const result = await inputWithBack({
+          message: field.prompt,
+          default: typeof currentValue === "string" ? currentValue : undefined,
+          showBack,
+        });
+        return result;
       }
-      return await select({
+      const result = await selectWithBack({
         message: field.prompt,
         choices: field.options.map((opt) => ({ value: opt, name: opt })),
+        default: typeof currentValue === "string" ? currentValue : undefined,
+        showBack,
       });
+      return result;
+    }
 
     case "list":
+      // For lists, show back option before collecting
+      if (showBack) {
+        const goBack = await selectWithBack({
+          message: field.prompt,
+          choices: [{ value: "continue", name: "Continue to add items" }],
+          showBack: true,
+        });
+        if (goBack === BACK_VALUE) return BACK_VALUE;
+      }
       return await collectList(field.prompt);
 
-    default:
-      return await input({ message: field.prompt });
+    default: {
+      const result = await inputWithBack({
+        message: field.prompt,
+        default: typeof currentValue === "string" ? currentValue : undefined,
+        showBack,
+      });
+      return result;
+    }
   }
 }
 
@@ -121,22 +169,101 @@ function applyTemplate(template: string, values: Record<string, string | string[
   return result;
 }
 
-async function collectIssueData(issueType: IssueType): Promise<{ title: string; body: string }> {
+async function collectIssueData(issueType: IssueType): Promise<{ title: string; body: string; values: Record<string, string | string[]> } | typeof BACK_VALUE> {
   const values: Record<string, string | string[]> = {};
+  const fields = issueType.fields;
 
-  for (const field of issueType.fields) {
-    values[field.name] = await collectFieldValue(field);
+  // Step through fields with back navigation
+  let fieldIndex = 0;
+  while (fieldIndex < fields.length) {
+    const field = fields[fieldIndex];
+    const isFirst = fieldIndex === 0;
+    const currentValue = values[field.name];
+
+    const result = await collectFieldValue(field, !isFirst, currentValue);
+
+    if (result === BACK_VALUE) {
+      if (fieldIndex > 0) {
+        fieldIndex--;
+      } else {
+        // At first field, return back to issue type selection
+        return BACK_VALUE;
+      }
+    } else {
+      values[field.name] = result;
+      fieldIndex++;
+    }
   }
 
   // Apply template with collected values
   const body = applyTemplate(issueType.template, values);
 
-  // Determine title: use first required field or first field
+  // Generate a default title suggestion from the first required field
   const titleField = issueType.fields.find((f) => f.required) || issueType.fields[0];
   const titleValue = values[titleField?.name || ""];
-  const title = Array.isArray(titleValue) ? titleValue[0] || "" : String(titleValue || "").trim();
+  const defaultTitle = Array.isArray(titleValue) ? titleValue[0] || "" : String(titleValue || "").trim();
 
-  return { title, body };
+  // Prompt for explicit title with back navigation
+  const titleResult = await inputWithBack({
+    message: "Issue title:",
+    default: defaultTitle,
+    validate: (val) => val.trim().length > 0 || "Title is required",
+    showBack: true,
+  });
+
+  if (titleResult === BACK_VALUE) {
+    // Go back to last field - recursively handle this by going back one field
+    // We need to re-collect from the last field
+    const lastField = fields[fields.length - 1];
+    const lastResult = await collectFieldValue(lastField, true, values[lastField.name]);
+    if (lastResult === BACK_VALUE) {
+      // User wants to go further back, restart the whole collection
+      return collectIssueData(issueType);
+    }
+    values[lastField.name] = lastResult;
+    // Now re-prompt for title
+    return collectIssueData(issueType);
+  }
+
+  return { title: titleResult, body, values };
+}
+
+function ensureLabelsExist(labels: string[]): void {
+  for (const label of labels) {
+    try {
+      // Check if label exists
+      execSync(`gh label list --search "${label}" --json name`, {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      // Parse results to see if exact match exists
+      const result = execSync(`gh label list --search "${label}" --json name`, {
+        encoding: "utf-8",
+      });
+      const existingLabels = JSON.parse(result) as { name: string }[];
+      const exactMatch = existingLabels.some((l) => l.name.toLowerCase() === label.toLowerCase());
+
+      if (!exactMatch) {
+        // Create the label with a default color
+        console.log(dim(`Creating label "${label}"...`));
+        execSync(`gh label create "${label}" --color "0e8a16" --force`, {
+          stdio: ["pipe", "pipe", "pipe"],
+        });
+      }
+    } catch {
+      // Label doesn't exist or error checking, try to create it
+      try {
+        console.log(dim(`Creating label "${label}"...`));
+        execSync(`gh label create "${label}" --color "0e8a16" --force`, {
+          stdio: ["pipe", "pipe", "pipe"],
+        });
+      } catch {
+        // If we can't create the label, we'll let the issue creation fail with the original error
+        console.warn(dim(`Warning: Could not create label "${label}"`));
+      }
+    }
+  }
 }
 
 function formatIssuePreview(data: IssueData): string {
@@ -174,8 +301,17 @@ export async function issueCommand(options: IssueOptions = {}): Promise<void> {
     const issueTypes = config.issueTypes;
     const branchFormat = config.branchFormat;
 
-    // Get issue type from flag or prompt
-    let issueType: IssueType;
+    // State for the flow
+    let issueType: IssueType | undefined;
+    let title: string = "";
+    let body: string = "";
+    let collectedValues: Record<string, string | string[]> = {};
+
+    // Step-based flow with back navigation
+    type StepName = "type" | "fields" | "preview";
+    let currentStep: StepName = "type";
+
+    // Skip type step if provided via flag
     if (options.type) {
       const found = issueTypes.find((t) => t.value === options.type);
       if (!found) {
@@ -183,43 +319,89 @@ export async function issueCommand(options: IssueOptions = {}): Promise<void> {
         process.exit(1);
       }
       issueType = found;
-    } else {
-      issueType = await select({
-        message: "Select issue type:",
-        choices: issueTypes.map((t) => ({
-          value: t,
-          name: t.label,
-        })),
-      });
+      currentStep = "fields";
     }
 
-    let title: string;
-    let body: string;
-
-    // If --title and --body provided, use them directly
+    // Skip fields if --title and --body provided
     if (options.title && options.body) {
       title = options.title;
       body = options.body;
-    } else if (options.json) {
+      currentStep = "preview";
+    } else if (options.json && issueType) {
       // Parse JSON and apply template
       try {
-        const values = JSON.parse(options.json) as Record<string, string | string[]>;
-        body = applyTemplate(issueType.template, values);
-
-        // Determine title from JSON values
+        collectedValues = JSON.parse(options.json) as Record<string, string | string[]>;
+        body = applyTemplate(issueType.template, collectedValues);
         const titleField = issueType.fields.find((f) => f.required) || issueType.fields[0];
-        const titleValue = values[titleField?.name || ""];
+        const titleValue = collectedValues[titleField?.name || ""];
         title = options.title || (Array.isArray(titleValue) ? titleValue[0] || "" : String(titleValue || "").trim());
+        currentStep = "preview";
       } catch {
         console.error("Invalid JSON provided to --json flag");
         process.exit(1);
       }
-    } else {
-      // Collect type-specific data interactively
-      console.log("");
-      const collected = await collectIssueData(issueType);
-      title = options.title || collected.title;
-      body = collected.body;
+    }
+
+    // Interactive step flow
+    while (currentStep !== undefined) {
+      switch (currentStep) {
+        case "type": {
+          const result = await selectWithBack({
+            message: "Select issue type:",
+            choices: issueTypes.map((t) => ({
+              value: t,
+              name: t.label,
+            })),
+            showBack: false, // First step
+          });
+
+          if (result === BACK_VALUE) {
+            // Can't go back from first step
+          } else {
+            issueType = result as IssueType;
+            currentStep = "fields";
+          }
+          break;
+        }
+
+        case "fields": {
+          if (!issueType) {
+            currentStep = "type";
+            break;
+          }
+
+          console.log("");
+          const collected = await collectIssueData(issueType);
+
+          if (collected === BACK_VALUE) {
+            // Go back to type selection (only if type wasn't provided via flag)
+            if (!options.type) {
+              currentStep = "type";
+            }
+            // If type was provided via flag, stay on fields
+          } else {
+            title = options.title || collected.title;
+            body = collected.body;
+            collectedValues = collected.values;
+            currentStep = "preview";
+          }
+          break;
+        }
+
+        case "preview": {
+          // Exit the loop to continue with preview and creation
+          currentStep = undefined as unknown as StepName;
+          break;
+        }
+
+        default:
+          currentStep = undefined as unknown as StepName;
+      }
+    }
+
+    if (!issueType) {
+      console.log("Aborted.");
+      process.exit(0);
     }
 
     // Determine labels
@@ -243,15 +425,30 @@ export async function issueCommand(options: IssueOptions = {}): Promise<void> {
 
     // Confirm (skip if --yes)
     if (!options.yes) {
-      const confirmed = await confirm({
+      const confirmResult = await selectWithBack({
         message: "Create this issue?",
-        default: true,
+        choices: [
+          { value: "yes", name: "Yes, create issue" },
+          { value: "no", name: "No, abort" },
+        ],
+        default: "yes",
+        showBack: true,
       });
 
-      if (!confirmed) {
+      if (confirmResult === BACK_VALUE) {
+        // Restart the flow
+        return issueCommand(options);
+      }
+
+      if (confirmResult !== "yes") {
         console.log("Aborted.");
         process.exit(0);
       }
+    }
+
+    // Ensure labels exist before creating issue
+    if (labels.length > 0) {
+      ensureLabelsExist(labels);
     }
 
     // Create the issue using gh CLI
@@ -273,62 +470,108 @@ export async function issueCommand(options: IssueOptions = {}): Promise<void> {
     } else if (options.yes) {
       shouldCreateBranch = false;
     } else {
-      shouldCreateBranch = await confirm({
+      const branchResult = await confirmWithBack({
         message: "Create a branch and start working on this issue?",
         default: true,
+        showBack: false, // Can't go back after issue is created
       });
+      shouldCreateBranch = branchResult === true;
     }
 
     if (shouldCreateBranch) {
-      let description: string;
+      // Branch creation step loop
+      type BranchStep = "description" | "confirm" | "done";
+      let branchStep: BranchStep = "description";
+      let description: string = "";
+      let branchName: string = "";
+
+      // Pre-fill if options provided
       if (options.branchDesc) {
         description = options.branchDesc;
+        branchStep = "confirm";
       } else if (options.yes) {
         description = title
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/^-|-$/g, "")
           .slice(0, 50);
-      } else {
-        description = await input({
-          message: "Short branch description:",
-          default: title
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-|-$/g, "")
-            .slice(0, 50),
-          validate: (val) => val.trim().length > 0 || "Description is required",
-        });
+        branchStep = "confirm";
       }
 
-      const kebab = description
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
+      while (branchStep !== "done") {
+        switch (branchStep) {
+          case "description": {
+            const descResult = await inputWithBack({
+              message: "Short branch description:",
+              default: description || title
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-|-$/g, "")
+                .slice(0, 50),
+              validate: (val) => val.trim().length > 0 || "Description is required",
+              showBack: false, // First step after issue creation
+            });
 
-      // Use configurable branch format
-      const ticketPart = issueNumber ? `#${issueNumber}` : "UNTRACKED";
-      const branchName = formatBranchName(branchFormat, {
-        type: issueType.branchType,
-        ticket: ticketPart,
-        description: kebab,
-      });
+            if (descResult === BACK_VALUE) {
+              // Can't go back, issue already created
+            } else {
+              description = descResult;
+              branchStep = "confirm";
+            }
+            break;
+          }
 
-      console.log(`\n${dim("Branch:")} ${cyan(branchName)}`);
+          case "confirm": {
+            const kebab = description
+              .trim()
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-|-$/g, "");
 
-      // Confirm branch creation (skip if --yes)
-      let confirmBranch = true;
-      if (!options.yes) {
-        confirmBranch = await confirm({
-          message: "Create this branch?",
-          default: true,
-        });
+            // Use configurable branch format
+            const ticketPart = issueNumber ? `#${issueNumber}` : "UNTRACKED";
+            branchName = formatBranchName(branchFormat, {
+              type: issueType.branchType,
+              ticket: ticketPart,
+              description: kebab,
+            });
+
+            console.log(`\n${dim("Branch:")} ${cyan(branchName)}`);
+
+            // Confirm branch creation (skip if --yes)
+            if (options.yes) {
+              branchStep = "done";
+            } else {
+              const confirmResult = await selectWithBack({
+                message: "Create this branch?",
+                choices: [
+                  { value: "yes", name: "Yes, create branch" },
+                  { value: "no", name: "No, skip branch" },
+                ],
+                default: "yes",
+                showBack: !options.branchDesc, // Can go back if description was entered interactively
+              });
+
+              if (confirmResult === BACK_VALUE) {
+                branchStep = "description";
+              } else if (confirmResult === "yes") {
+                branchStep = "done";
+              } else {
+                // User said no, skip branch creation
+                return;
+              }
+            }
+            break;
+          }
+
+          default:
+            branchStep = "done";
+        }
       }
 
-      if (confirmBranch) {
-        execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-        console.log(green(`✓ Branch created: ${branchName}`));
+      // Create the branch
+      execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+      console.log(green(`✓ Branch created: ${branchName}`));
 
         // Skip test plan prompts if --yes is provided
         if (!options.yes) {
@@ -336,36 +579,78 @@ export async function issueCommand(options: IssueOptions = {}): Promise<void> {
           const isFeatureType = issueType.value === "user-story" || issueType.value === "feature";
           const isBugType = issueType.value === "bug";
           if (isFeatureType || isBugType) {
-            const addTestPlan = await confirm({
-              message: "Add test plan steps?",
-              default: false,
-            });
+            // For bugs, check if we have steps to reproduce that can be used as test plan
+            const stepsToReproduce = collectedValues.steps;
+            const hasSteps = Array.isArray(stepsToReproduce) && stepsToReproduce.length > 0;
 
-            if (addTestPlan) {
-              const steps: string[] = [];
-              console.log(dim("\nAdd testing steps. Empty line to finish.\n"));
-              let adding = true;
-              while (adding) {
-                const step = await input({
-                  message: `Step ${steps.length + 1}${steps.length > 0 ? " (blank to finish)" : ""}:`,
-                });
-                if (!step.trim()) {
-                  adding = false;
-                } else {
-                  steps.push(step.trim());
+            if (isBugType && hasSteps) {
+              // Offer to use steps to reproduce as test plan
+              console.log(dim("\nSteps to reproduce from bug report:"));
+              stepsToReproduce.forEach((step, i) => console.log(dim(`  ${i + 1}. ${step}`)));
+
+              const useSteps = await select({
+                message: "Use these as test plan steps?",
+                choices: [
+                  { value: "use", name: "Yes, use these steps" },
+                  { value: "edit", name: "Edit/add more steps" },
+                  { value: "skip", name: "Skip test plan" },
+                ],
+              });
+
+              if (useSteps === "use") {
+                setTestPlan(branchName, stepsToReproduce);
+                console.log(green(`✓ Saved ${stepsToReproduce.length} test plan step${stepsToReproduce.length > 1 ? "s" : ""}`));
+              } else if (useSteps === "edit") {
+                const steps: string[] = [...stepsToReproduce];
+                console.log(dim("\nEdit steps or add more. Empty line to finish.\n"));
+                let adding = true;
+                while (adding) {
+                  const step = await input({
+                    message: `Step ${steps.length + 1} (blank to finish):`,
+                  });
+                  if (!step.trim()) {
+                    adding = false;
+                  } else {
+                    steps.push(step.trim());
+                  }
+                }
+                if (steps.length > 0) {
+                  setTestPlan(branchName, steps);
+                  console.log(green(`✓ Saved ${steps.length} test plan step${steps.length > 1 ? "s" : ""}`));
                 }
               }
-              if (steps.length > 0) {
-                setTestPlan(branchName, steps);
-                console.log(green(`✓ Saved ${steps.length} test plan step${steps.length > 1 ? "s" : ""}`));
+            } else {
+              // Regular flow for features or bugs without steps
+              const addTestPlan = await confirm({
+                message: "Add test plan steps?",
+                default: false,
+              });
+
+              if (addTestPlan) {
+                const steps: string[] = [];
+                console.log(dim("\nAdd testing steps. Empty line to finish.\n"));
+                let adding = true;
+                while (adding) {
+                  const step = await input({
+                    message: `Step ${steps.length + 1}${steps.length > 0 ? " (blank to finish)" : ""}:`,
+                  });
+                  if (!step.trim()) {
+                    adding = false;
+                  } else {
+                    steps.push(step.trim());
+                  }
+                }
+                if (steps.length > 0) {
+                  setTestPlan(branchName, steps);
+                  console.log(green(`✓ Saved ${steps.length} test plan step${steps.length > 1 ? "s" : ""}`));
+                }
               }
             }
           }
         }
 
-        console.log(dim("\nYou're ready to start working!"));
-        console.log(dim(`  Make changes, then: ${cyan("devflow commit")}`));
-      }
+      console.log(dim("\nYou're ready to start working!"));
+      console.log(dim(`  Make changes, then: ${cyan("devflow commit")}`));
     }
   } catch (error) {
     if ((error as Error).name === "ExitPromptError") {

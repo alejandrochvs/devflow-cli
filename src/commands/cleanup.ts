@@ -1,7 +1,7 @@
-import { confirm, checkbox } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { bold, dim, green, red, yellow, gray } from "../colors.js";
 import { deleteTestPlan } from "../test-plan.js";
+import { checkboxWithBack, confirmWithBack, BACK_VALUE } from "../prompts.js";
 
 function getMergedBranches(): string[] {
   try {
@@ -81,13 +81,19 @@ export async function cleanupCommand(options: CleanupOptions = {}): Promise<void
         };
       });
 
-      const toDelete = await checkbox({
+      const toDelete = await checkboxWithBack({
         message: "Select branches to delete:",
         choices: [
           { value: "__ALL__", name: bold("Delete all") },
           ...choices,
         ],
+        showBack: false, // First and only step
       });
+
+      if (toDelete === BACK_VALUE) {
+        // Can't go back from first step
+        return;
+      }
 
       if (toDelete.length === 0) {
         console.log("No branches selected.");
@@ -115,10 +121,12 @@ export async function cleanupCommand(options: CleanupOptions = {}): Promise<void
             } else if (options.yes) {
               force = false;
             } else {
-              force = await confirm({
+              const forceResult = await confirmWithBack({
                 message: `${branch} is not fully merged. Force delete?`,
                 default: false,
+                showBack: false, // Inside loop, can't go back
               });
+              force = forceResult === true;
             }
             if (force) {
               execSync(`git branch -D ${branch}`, { stdio: "ignore" });

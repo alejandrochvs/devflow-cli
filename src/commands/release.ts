@@ -4,6 +4,11 @@ import { readFileSync, writeFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { bold, dim, green, cyan, yellow } from "../colors.js";
 import { checkGhInstalled } from "../git.js";
+import {
+  selectWithBack,
+  confirmWithBack,
+  BACK_VALUE,
+} from "../prompts.js";
 
 interface CommitInfo {
   hash: string;
@@ -155,56 +160,94 @@ export async function releaseCommand(options: ReleaseOptions = {}): Promise<void
 
     const suggested = suggestBump(commits);
 
-    // Determine new version from flags or prompt
-    let newVersion: string;
+    // Step-based flow with back navigation
+    type StepName = "bump" | "confirm" | "execute";
+    let currentStep: StepName = "bump";
+    let newVersion: string = "";
+    let bumpType: "major" | "minor" | "patch" = suggested;
 
+    // Skip bump step if version or bump provided via flags
     if (options.version) {
-      // Explicit version provided
       newVersion = options.version;
+      currentStep = "confirm";
     } else if (options.bump) {
-      // Bump type provided
       if (!["patch", "minor", "major"].includes(options.bump)) {
         console.error(`Invalid bump type: ${options.bump}. Use: patch, minor, or major`);
         process.exit(1);
       }
-      newVersion = bumpVersion(currentVersion, options.bump as "major" | "minor" | "patch");
-    } else {
-      // Prompt for bump type
-      const bump = await select({
-        message: `Version bump (suggested: ${suggested}):`,
-        choices: [
-          { value: "patch", name: `patch → ${bumpVersion(currentVersion, "patch")}` },
-          { value: "minor", name: `minor → ${bumpVersion(currentVersion, "minor")}` },
-          { value: "major", name: `major → ${bumpVersion(currentVersion, "major")}` },
-        ],
-        default: suggested,
-      }) as "major" | "minor" | "patch";
-      newVersion = bumpVersion(currentVersion, bump);
+      bumpType = options.bump as "major" | "minor" | "patch";
+      newVersion = bumpVersion(currentVersion, bumpType);
+      currentStep = "confirm";
+    }
+
+    while (currentStep !== "execute") {
+      switch (currentStep) {
+        case "bump": {
+          const result = await selectWithBack({
+            message: `Version bump (suggested: ${suggested}):`,
+            choices: [
+              { value: "patch", name: `patch → ${bumpVersion(currentVersion, "patch")}` },
+              { value: "minor", name: `minor → ${bumpVersion(currentVersion, "minor")}` },
+              { value: "major", name: `major → ${bumpVersion(currentVersion, "major")}` },
+            ],
+            default: bumpType,
+            showBack: false, // First step
+          });
+
+          if (result === BACK_VALUE) {
+            // Can't go back from first step
+          } else {
+            bumpType = result as "major" | "minor" | "patch";
+            newVersion = bumpVersion(currentVersion, bumpType);
+            currentStep = "confirm";
+          }
+          break;
+        }
+
+        case "confirm": {
+          const notes = buildReleaseNotes(commits);
+
+          console.log(`\n${dim("───")} ${bold(`v${newVersion}`)} ${dim("───")}\n`);
+          console.log(notes);
+          console.log(`\n${dim("─────────────────")}\n`);
+
+          if (options.dryRun) {
+            console.log(dim("[dry-run] No release created."));
+            return;
+          }
+
+          // Confirm unless --yes
+          if (!options.yes) {
+            const confirmResult = await selectWithBack({
+              message: `Release v${newVersion}?`,
+              choices: [
+                { value: "yes", name: "Yes, release" },
+                { value: "no", name: "No, abort" },
+              ],
+              default: "yes",
+              showBack: !options.version && !options.bump,
+            });
+
+            if (confirmResult === BACK_VALUE) {
+              currentStep = "bump";
+              break;
+            }
+
+            if (confirmResult !== "yes") {
+              console.log("Aborted.");
+              return;
+            }
+          }
+          currentStep = "execute";
+          break;
+        }
+
+        default:
+          currentStep = "execute";
+      }
     }
 
     const notes = buildReleaseNotes(commits);
-
-    console.log(`\n${dim("───")} ${bold(`v${newVersion}`)} ${dim("───")}\n`);
-    console.log(notes);
-    console.log(`\n${dim("─────────────────")}\n`);
-
-    if (options.dryRun) {
-      console.log(dim("[dry-run] No release created."));
-      return;
-    }
-
-    // Confirm unless --yes
-    if (!options.yes) {
-      const confirmed = await confirm({
-        message: `Release v${newVersion}?`,
-        default: true,
-      });
-
-      if (!confirmed) {
-        console.log("Aborted.");
-        return;
-      }
-    }
 
     // 1. Update package.json version
     const pkgPath = resolve(cwd, "package.json");
@@ -231,10 +274,12 @@ export async function releaseCommand(options: ReleaseOptions = {}): Promise<void
     console.log(green("✓ Pushed to remote"));
 
     // 6. Create GitHub release (auto-create with --yes)
-    const createRelease = options.yes || await confirm({
+    const createReleaseResult = options.yes || await confirmWithBack({
       message: "Create GitHub release? (triggers npm publish)",
       default: true,
+      showBack: false, // Can't go back after release is pushed
     });
+    const createRelease = createReleaseResult === true;
 
     if (createRelease) {
       execSync(

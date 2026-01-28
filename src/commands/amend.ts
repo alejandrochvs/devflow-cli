@@ -3,6 +3,7 @@ import { execSync } from "child_process";
 import { loadConfig } from "../config.js";
 import { inferTicket, inferScope } from "../git.js";
 import { bold, dim, green, yellow, cyan } from "../colors.js";
+import { selectWithBack, inputWithBack, confirmWithBack, searchWithBack, BACK_VALUE } from "../prompts.js";
 
 function getLastCommitMessage(): string {
   return execSync("git log -1 --format=%s", { encoding: "utf-8" }).trim();
@@ -51,6 +52,13 @@ export interface AmendOptions {
   yes?: boolean;
 }
 
+interface AmendState {
+  type: string;
+  scope: string;
+  message: string;
+  isBreaking: boolean;
+}
+
 export async function amendCommand(options: AmendOptions = {}): Promise<void> {
   try {
     const config = loadConfig();
@@ -74,83 +82,158 @@ export async function amendCommand(options: AmendOptions = {}): Promise<void> {
     let newMessage = lastMessage;
 
     if (editMessage) {
-      // Get type from flag or prompt
-      const type = options.type || await select({
-        message: "Select commit type:",
-        choices: config.commitTypes.map((t) => ({ value: t.value, name: t.label })),
-        default: parsed.type,
-      });
+      // Initialize state from parsed message
+      const state: AmendState = {
+        type: options.type || parsed.type || "",
+        scope: options.scope ?? parsed.scope ?? "",
+        message: options.message || parsed.message || "",
+        isBreaking: options.breaking ?? parsed.breaking,
+      };
 
-      // Get scope from flag or prompt
-      let finalScope: string | undefined;
-      if (options.scope !== undefined) {
-        finalScope = options.scope;
-      } else if (config.scopes.length > 0) {
-        finalScope = await search({
-          message: parsed.scope
-            ? `Select scope (current: ${cyan(parsed.scope)}):`
-            : "Select scope (type to filter):",
-          source: (term) => {
-            const filtered = config.scopes.filter(
-              (s) =>
-                !term ||
-                s.value.includes(term.toLowerCase()) ||
-                s.description.toLowerCase().includes(term.toLowerCase())
-            );
-            if (parsed.scope) {
-              filtered.sort((a, b) =>
-                a.value === parsed.scope ? -1 : b.value === parsed.scope ? 1 : 0
-              );
+      // Step-based flow with back navigation
+      type StepName = "type" | "scope" | "message" | "breaking";
+      let currentStep: StepName = "type";
+
+      // Skip steps that have flags
+      if (options.type) currentStep = "scope";
+
+      while (currentStep !== undefined) {
+        switch (currentStep) {
+          case "type": {
+            if (options.type) {
+              currentStep = "scope";
+              break;
             }
-            return filtered.map((s) => ({
-              value: s.value,
-              name: `${s.value} — ${s.description}`,
-            }));
-          },
-        });
-      } else {
-        finalScope = await input({
-          message: "Enter scope (optional):",
-          default: parsed.scope,
-        });
-      }
 
-      // Get message from flag or prompt
-      let message: string;
-      if (options.message) {
-        message = options.message;
-      } else {
-        message = await input({
-          message: "Enter commit message:",
-          default: parsed.message,
-          validate: (val) => val.trim().length > 0 || "Commit message is required",
-        });
-      }
+            const result = await selectWithBack({
+              message: "Select commit type:",
+              choices: config.commitTypes.map((t) => ({ value: t.value, name: t.label })),
+              default: state.type,
+              showBack: false, // First step
+            });
 
-      // Get breaking change status from flag or prompt
-      let isBreaking: boolean;
-      if (options.breaking !== undefined) {
-        isBreaking = options.breaking;
-      } else if (options.yes) {
-        isBreaking = parsed.breaking;
-      } else {
-        isBreaking = await confirm({
-          message: "Is this a breaking change?",
-          default: parsed.breaking,
-        });
+            if (result === BACK_VALUE) {
+              // Can't go back from first step
+            } else {
+              state.type = result;
+              currentStep = "scope";
+            }
+            break;
+          }
+
+          case "scope": {
+            if (options.scope !== undefined) {
+              currentStep = "message";
+              break;
+            }
+
+            if (config.scopes.length > 0) {
+              const result = await searchWithBack({
+                message: parsed.scope
+                  ? `Select scope (current: ${cyan(parsed.scope)}):`
+                  : "Select scope (type to filter):",
+                source: (term) => {
+                  const filtered = config.scopes.filter(
+                    (s) =>
+                      !term ||
+                      s.value.includes(term.toLowerCase()) ||
+                      s.description.toLowerCase().includes(term.toLowerCase())
+                  );
+                  if (parsed.scope) {
+                    filtered.sort((a, b) =>
+                      a.value === parsed.scope ? -1 : b.value === parsed.scope ? 1 : 0
+                    );
+                  }
+                  return filtered.map((s) => ({
+                    value: s.value,
+                    name: `${s.value} — ${s.description}`,
+                  }));
+                },
+                showBack: !options.type,
+              });
+
+              if (result === BACK_VALUE) {
+                currentStep = "type";
+              } else {
+                state.scope = result;
+                currentStep = "message";
+              }
+            } else {
+              const result = await inputWithBack({
+                message: "Enter scope (optional):",
+                default: state.scope,
+                showBack: !options.type,
+              });
+
+              if (result === BACK_VALUE) {
+                currentStep = "type";
+              } else {
+                state.scope = result;
+                currentStep = "message";
+              }
+            }
+            break;
+          }
+
+          case "message": {
+            if (options.message) {
+              currentStep = "breaking";
+              break;
+            }
+
+            const result = await inputWithBack({
+              message: "Enter commit message:",
+              default: state.message,
+              validate: (val) => val.trim().length > 0 || "Commit message is required",
+              showBack: true,
+            });
+
+            if (result === BACK_VALUE) {
+              currentStep = options.scope !== undefined ? "type" : "scope";
+            } else {
+              state.message = result;
+              currentStep = "breaking";
+            }
+            break;
+          }
+
+          case "breaking": {
+            if (options.breaking !== undefined || options.yes) {
+              currentStep = undefined as unknown as StepName;
+              break;
+            }
+
+            const result = await confirmWithBack({
+              message: "Is this a breaking change?",
+              default: state.isBreaking,
+              showBack: true,
+            });
+
+            if (result === BACK_VALUE) {
+              currentStep = options.message ? "scope" : "message";
+            } else {
+              state.isBreaking = result;
+              currentStep = undefined as unknown as StepName;
+            }
+            break;
+          }
+
+          default:
+            currentStep = undefined as unknown as StepName;
+        }
       }
 
       const ticket = parsed.ticket || inferTicket();
-      const breaking = isBreaking ? "!" : "";
-      const scope = finalScope || "";
+      const breaking = state.isBreaking ? "!" : "";
+      const scope = state.scope || "";
 
       // Build using format
       let result = config.commitFormat;
-      result = result.replace("{type}", type);
+      result = result.replace("{type}", state.type);
       result = result.replace("{ticket}", ticket);
       result = result.replace("{breaking}", breaking);
       result = result.replace("{scope}", scope);
-      result = result.replace("{message}", message.trim());
+      result = result.replace("{message}", state.message.trim());
       result = result.replace(/\[\]/g, "");
       result = result.replace(/\(\)/g, "");
 
@@ -179,12 +262,21 @@ export async function amendCommand(options: AmendOptions = {}): Promise<void> {
 
     // Confirm (skip if --yes)
     if (!options.yes) {
-      const confirmed = await confirm({
+      const confirmResult = await selectWithBack({
         message: "Amend this commit?",
-        default: true,
+        choices: [
+          { value: "yes", name: "Yes, amend commit" },
+          { value: "no", name: "No, abort" },
+        ],
+        default: "yes",
+        showBack: true,
       });
 
-      if (!confirmed) {
+      if (confirmResult === BACK_VALUE) {
+        return amendCommand(options);
+      }
+
+      if (confirmResult !== "yes") {
         console.log("Aborted.");
         process.exit(0);
       }

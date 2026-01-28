@@ -4,6 +4,10 @@ import { confirm } from "@inquirer/prompts";
 import { bold, dim, green, yellow } from "../colors.js";
 import { loadConfig } from "../config.js";
 import { writeVersionInfo, getCliVersion } from "../devflow-version.js";
+import {
+  confirmWithBack,
+  BACK_VALUE,
+} from "../prompts.js";
 
 export interface UpdateOptions {
   yes?: boolean;
@@ -47,6 +51,8 @@ const AI_INSTRUCTIONS_TEMPLATE = `# DevFlow - AI Agent Instructions
    - When ready: \`devflow pr\`
 
 6. **Use \`--dry-run\` to preview** any command without executing
+
+7. **Back navigation:** Press Escape to return to the previous step
 
 ## Non-Interactive Mode (AI-Friendly)
 
@@ -229,10 +235,12 @@ export async function updateCommand(options: UpdateOptions = {}): Promise<void> 
     const aiInstructionsExists = existsSync(aiInstructionsPath);
 
     if (aiInstructionsExists && !options.yes) {
-      updateAiInstructions = await confirm({
+      const result = await confirmWithBack({
         message: "Update .devflow/AI_INSTRUCTIONS.md with latest template?",
         default: true,
+        showBack: false, // First interactive step
       });
+      updateAiInstructions = result === true;
     }
 
     if (updateAiInstructions) {
@@ -268,10 +276,12 @@ export async function updateCommand(options: UpdateOptions = {}): Promise<void> 
         let updateClaudeMd = true;
 
         if (!options.yes) {
-          updateClaudeMd = await confirm({
+          const result = await confirmWithBack({
             message: "Add non-interactive mode section to CLAUDE.md?",
             default: true,
+            showBack: false, // Can't go back to previous AI_INSTRUCTIONS update
           });
+          updateClaudeMd = result === true;
         }
 
         if (updateClaudeMd) {

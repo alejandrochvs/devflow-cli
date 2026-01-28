@@ -1,7 +1,7 @@
-import { select } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { bold, dim, green, cyan, yellow } from "../colors.js";
 import { getDefaultBase, getBranch } from "../git.js";
+import { selectWithBack, BACK_VALUE } from "../prompts.js";
 
 interface LogEntry {
   hash: string;
@@ -41,58 +41,98 @@ export async function logCommand(): Promise<void> {
 
     console.log(`\n${dim("───")} ${bold("Log")} ${dim(`(${branch})`)} ${dim("───")}\n`);
 
-    const selected = await select({
-      message: "Select a commit:",
-      choices: [
-        ...entries.map((e) => ({
-          value: e.hash,
-          name: `${cyan(e.shortHash)} ${e.subject} ${dim(`(${e.author}, ${e.date})`)}`,
-        })),
-        { value: "__done__", name: dim("Done") },
-      ],
-    });
+    // Step-based flow with back navigation
+    type StepName = "selectCommit" | "action" | "done";
+    let currentStep: StepName = "selectCommit";
+    let selectedHash: string = "";
 
-    if (selected === "__done__") return;
+    while (currentStep !== "done") {
+      switch (currentStep) {
+        case "selectCommit": {
+          const result = await selectWithBack({
+            message: "Select a commit:",
+            choices: [
+              ...entries.map((e) => ({
+                value: e.hash,
+                name: `${cyan(e.shortHash)} ${e.subject} ${dim(`(${e.author}, ${e.date})`)}`,
+              })),
+              { value: "__done__", name: dim("Done") },
+            ],
+            showBack: false, // First step
+          });
 
-    const entry = entries.find((e) => e.hash === selected)!;
+          if (result === BACK_VALUE) {
+            // Can't go back from first step
+          } else if (result === "__done__") {
+            currentStep = "done";
+          } else {
+            selectedHash = result;
+            currentStep = "action";
+          }
+          break;
+        }
 
-    // Show commit detail
-    const detail = execSync(`git show --stat ${selected} --format="%B"`, {
-      encoding: "utf-8",
-    }).trim();
-    console.log(`\n${dim(detail)}\n`);
+        case "action": {
+          const entry = entries.find((e) => e.hash === selectedHash)!;
 
-    const action = await select({
-      message: "Action:",
-      choices: [
-        { value: "cherry-pick", name: "Cherry-pick to current branch" },
-        { value: "revert", name: "Revert this commit" },
-        { value: "fixup", name: "Create fixup for this commit" },
-        { value: "diff", name: "Show full diff" },
-        { value: "done", name: "Done" },
-      ],
-    });
+          // Show commit detail
+          const detail = execSync(`git show --stat ${selectedHash} --format="%B"`, {
+            encoding: "utf-8",
+          }).trim();
+          console.log(`\n${dim(detail)}\n`);
 
-    switch (action) {
-      case "cherry-pick":
-        execSync(`git cherry-pick ${selected}`, { stdio: "inherit" });
-        console.log(green(`✓ Cherry-picked ${entry.shortHash}`));
-        break;
+          const action = await selectWithBack({
+            message: "Action:",
+            choices: [
+              { value: "cherry-pick", name: "Cherry-pick to current branch" },
+              { value: "revert", name: "Revert this commit" },
+              { value: "fixup", name: "Create fixup for this commit" },
+              { value: "diff", name: "Show full diff" },
+              { value: "done", name: "Done" },
+            ],
+            showBack: true,
+          });
 
-      case "revert":
-        execSync(`git revert ${selected}`, { stdio: "inherit" });
-        console.log(green(`✓ Reverted ${entry.shortHash}`));
-        break;
+          if (action === BACK_VALUE) {
+            currentStep = "selectCommit";
+            break;
+          }
 
-      case "fixup":
-        execSync(`git commit --fixup=${selected}`, { stdio: "inherit" });
-        console.log(green(`✓ Created fixup for ${entry.shortHash}`));
-        break;
+          switch (action) {
+            case "cherry-pick":
+              execSync(`git cherry-pick ${selectedHash}`, { stdio: "inherit" });
+              console.log(green(`✓ Cherry-picked ${entry.shortHash}`));
+              currentStep = "done";
+              break;
 
-      case "diff": {
-        const diff = execSync(`git show ${selected}`, { encoding: "utf-8" });
-        console.log(diff);
-        break;
+            case "revert":
+              execSync(`git revert ${selectedHash}`, { stdio: "inherit" });
+              console.log(green(`✓ Reverted ${entry.shortHash}`));
+              currentStep = "done";
+              break;
+
+            case "fixup":
+              execSync(`git commit --fixup=${selectedHash}`, { stdio: "inherit" });
+              console.log(green(`✓ Created fixup for ${entry.shortHash}`));
+              currentStep = "done";
+              break;
+
+            case "diff": {
+              const diff = execSync(`git show ${selectedHash}`, { encoding: "utf-8" });
+              console.log(diff);
+              // Stay on action step to allow choosing another action
+              break;
+            }
+
+            case "done":
+              currentStep = "done";
+              break;
+          }
+          break;
+        }
+
+        default:
+          currentStep = "done";
       }
     }
   } catch (error) {

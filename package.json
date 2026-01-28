@@ -8,7 +8,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
+    "predev": "npm run build && npm link",
+    "dev": "trap 'npm unlink 2>/dev/null' EXIT && tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm run build",
