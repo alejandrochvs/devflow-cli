@@ -5,6 +5,7 @@ import { bold, dim, green, cyan, gray } from "../colors.js";
 import { checkGhInstalled } from "../git.js";
 import { setTestPlan } from "../test-plan.js";
 import { formatBranchName } from "./branch.js";
+import { assignIssue, getCurrentUser } from "../providers/projects.js";
 import {
   selectWithBack,
   inputWithBack,
@@ -453,15 +454,25 @@ export async function issueCommand(options: IssueOptions = {}): Promise<void> {
 
     // Create the issue using gh CLI
     const labelArg = labels.length > 0 ? `--label "${labels.join(",")}"` : "";
-    const cmd = `gh issue create --title ${JSON.stringify(title)} --body ${JSON.stringify(body)} ${labelArg}`;
+    const cmd = `gh issue create --title ${JSON.stringify(title)} --body-file - ${labelArg}`;
 
-    const result = execSync(cmd, { encoding: "utf-8" }).trim();
+    const result = execSync(cmd, { input: body, encoding: "utf-8" }).trim();
 
     // Extract issue number from URL (format: https://github.com/owner/repo/issues/123)
     const issueUrlMatch = result.match(/\/issues\/(\d+)/);
     const issueNumber = issueUrlMatch ? issueUrlMatch[1] : null;
 
     console.log(green(`\n✓ Issue created: ${result}`));
+
+    // Self-assign the issue to the current user
+    if (issueNumber) {
+      const currentUser = getCurrentUser();
+      if (currentUser) {
+        if (assignIssue(parseInt(issueNumber, 10), currentUser)) {
+          console.log(green(`✓ Assigned #${issueNumber} to @${currentUser}`));
+        }
+      }
+    }
 
     // Handle branch creation from flag or prompt
     let shouldCreateBranch: boolean;
