@@ -172,8 +172,39 @@ export async function branchCommand(options: BranchOptions = {}): Promise<void> 
       }
     }
 
-    execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-    console.log(green(`✓ Branch created: ${branchName}`));
+    // Check if branch already exists
+    let branchExists = false;
+    try {
+      execSync(`git rev-parse --verify ${branchName}`, { stdio: "pipe" });
+      branchExists = true;
+    } catch {
+      branchExists = false;
+    }
+
+    if (branchExists) {
+      const action = await select({
+        message: `Branch "${branchName}" already exists. What do you want to do?`,
+        choices: [
+          { value: "checkout", name: "Checkout the existing branch" },
+          { value: "new", name: "Create with a different name" },
+          { value: "abort", name: "Abort" },
+        ],
+      });
+
+      if (action === "checkout") {
+        execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+        console.log(green(`✓ Checked out existing branch: ${branchName}`));
+      } else if (action === "new") {
+        console.log("Aborted. Please run devflow branch again with a different description.");
+        process.exit(0);
+      } else {
+        console.log("Aborted.");
+        process.exit(0);
+      }
+    } else {
+      execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+      console.log(green(`✓ Branch created: ${branchName}`));
+    }
 
     // Handle test plan from flag or prompt
     if (options.testPlan) {
