@@ -4,122 +4,41 @@
 
 | Task | Command |
 |------|---------|
-| Check status | `devflow status` |
-| List project issues | `devflow issues` |
-| Start work on issue | `devflow issues --work` |
-| Create new issue | `devflow issue` |
 | New branch | `devflow branch` |
 | Commit changes | `devflow commit` or `devflow commit -m "message"` |
 | Create/update PR | `devflow pr` |
+| Create issue | `devflow issue` |
 | Amend last commit | `devflow amend` |
+| Check status | `devflow status` |
 | View PR comments | `devflow comments` |
-
-## Recommended Workflow (Issue-First Development)
-
-**Always start with an issue for traceability.** This ensures all work is tracked and linked in the project board.
-
-### Before Starting Any Work
-
-1. **Check status:** `devflow status`
-2. **Check project board:** `devflow issues` - see what's in Todo/In Progress
-3. **Start work on existing issue:** `devflow issues --work --issue <N> --yes`
-   - OR **create new issue:** `devflow issue --type <type> --title "..." --create-branch --yes`
-4. **Never use `devflow branch` directly** - always go through issues for traceability
-
-### Standard Tracked Workflow
-
-```bash
-# 1. Check current status
-devflow status
-
-# 2. See available issues on project board
-devflow issues
-
-# 3. Start work on an existing issue (assigns + moves to In Progress + creates branch)
-devflow issues --work --issue 123 --yes
-
-# 4. Make your changes...
-
-# 5. Stage and commit
-git add <files>
-devflow commit
-
-# 6. Create PR (auto-links to issue, moves issue to In Review)
-devflow pr
-```
-
-### If No Relevant Issue Exists
-
-```bash
-# 1. Create issue + branch in one command
-devflow issue --type task --title "Add user authentication" --create-branch --branch-desc "add-auth" --yes
-
-# 2. Make changes, commit, and PR
-git add <files>
-devflow commit
-devflow pr
-```
 
 ## Rules for AI Agents
 
-1. **Always check for or create an issue first:**
-   - Check project board: `devflow issues`
-   - Pick existing issue: `devflow issues --work --issue <N> --yes`
-   - Or create new: `devflow issue --type <type> --title "..." --create-branch --yes`
-   - This ensures full traceability in scrum/agile workflows
-
-2. **Use devflow instead of git for:**
-   - Issues: `devflow issues` / `devflow issue` not `gh issue`
+1. **Use devflow instead of git for:**
    - Branches: `devflow branch` not `git checkout -b`
    - Commits: `devflow commit` not `git commit`
    - PRs: `devflow pr` not `gh pr create`
 
-3. **Commit format:** `{type}[{ticket}]{breaking}({scope}): {message}`
-   - Example: `feat[#123](auth): add OAuth2 login`
+2. **Commit format:** `{type}[{ticket}]{breaking}({scope}): {message}`
+   - Example: `feat[123](auth): add OAuth2 login`
 
-4. **Branch format:** `{type}/{ticket}_{description}`
-   - Example: `feat/#123_add-login`
+3. **Branch format:** `{type}/{ticket}_{description}`
+   - Example: `feat/123_add-login`
 
-5. **Before making changes:**
+4. **Before making changes:**
    - Check status: `devflow status`
-   - Check project board: `devflow issues`
-   - Start work: `devflow issues --work --issue <N> --yes`
-   - Or create new: `devflow issue --type <type> --title "..." --create-branch --yes`
+   - Create branch if needed: `devflow branch`
 
-6. **After making changes:**
+5. **After making changes:**
    - Stage files: `git add <files>`
    - Commit: `devflow commit`
    - When ready: `devflow pr`
 
-7. **Use `--dry-run` to preview** any command without executing
+6. **Use `--dry-run` to preview** any command without executing
 
 ## Non-Interactive Mode (AI-Friendly)
 
 All commands support flags to bypass interactive prompts. Use `--yes` to skip confirmations.
-
-### Issues Command (Project Board)
-```bash
-# List Todo and In Progress items
-devflow issues
-
-# Filter by status
-devflow issues --status todo
-devflow issues --status in-progress
-devflow issues --status in-review
-
-# Show unassigned Todo items
-devflow issues --available
-
-# Start work on an issue (assign + move to In Progress + create branch)
-devflow issues --work --issue 123 --branch-desc "add-auth" --yes
-```
-
-### Issue Command (Create New)
-```bash
-devflow issue --type bug --title "Login crashes on iOS" --body "Steps to reproduce..." --yes
-devflow issue --type user-story --json '{"asA":"user","iWant":"to login","soThat":"I can access my account"}' --yes
-devflow issue --type task --title "Update deps" --create-branch --branch-desc "update-deps" --yes
-```
 
 ### Branch Command
 ```bash
@@ -140,6 +59,18 @@ devflow commit --type feat --message "add API" --breaking --breaking-desc "Chang
 devflow pr --title "Add OAuth2 login" --summary "Implements OAuth2 flow" --yes
 devflow pr --title "Feature X" --base develop --ready --yes
 ```
+
+### Issue Command
+```bash
+devflow issue --type bug --title "Login crashes on iOS" --body "Steps to reproduce..." --yes
+devflow issue --type user-story --json '{"asA":"user","iWant":"to login","soThat":"I can access my account"}' --yes
+devflow issue --type task --title "Update deps" --create-branch --branch-desc "update-deps" --yes
+
+# Bug with steps to reproduce (will be offered as test plan when creating branch)
+devflow issue --type bug --json '{"description":"App crashes","expected":"Should work","steps":["Open app","Click button","See crash"]}' --create-branch --yes
+```
+
+**Note:** When creating a bug issue with `--create-branch`, the steps to reproduce are automatically offered as test plan steps.
 
 ### Amend Command
 ```bash
@@ -212,81 +143,47 @@ devflow release --bump minor --yes
 devflow release --version 2.0.0 --yes
 ```
 
+## Features
+
+### Auto-Creating Labels
+When creating an issue, devflow automatically creates any missing GitHub labels. No manual label setup required.
+
+### Bug Test Plans
+When creating a bug issue with a branch, the "steps to reproduce" are automatically offered as test plan steps:
+- **Use steps** - Directly save them as the test plan
+- **Edit/add more** - Start with bug steps and add more
+- **Skip** - Don't create a test plan
+
+### Interactive Title Prompt
+Issue creation now includes an explicit title prompt with a suggested default based on the issue content.
+
 ## Common Workflows
 
-### 1. Work on Existing Issue (Default)
+### New Feature
 ```bash
-# Check project board for existing issue
-devflow issues
-
-# Start work on issue #123
-devflow issues --work --issue 123 --yes
-
+devflow branch          # Create feature branch
 # ... make changes ...
 git add <files>
-devflow commit
-
-# Create PR (auto-moves issue to "In Review")
-devflow pr
+devflow commit          # Commit with proper format
+devflow pr              # Create pull request
 ```
 
-### 2. Create New Issue + Work (When No Issue Exists)
+### Quick Fix
 ```bash
-# Create issue with branch in one command
-devflow issue --type task --title "Add feature X" --create-branch --branch-desc "feature-x" --yes
-
-# ... make changes ...
-git add <files>
-devflow commit
-devflow pr
-```
-
-### 3. Quick Untracked Fix (Use Sparingly)
-**Only for trivial fixes like typos. Prefer creating an issue for traceability.**
-```bash
-devflow branch --type fix --ticket UNTRACKED --description "typo" --yes
 git add <files>
 devflow commit -m "fix typo in login form"
-devflow pr
+devflow amend           # If you need to add more changes
 ```
 
 ### Fully Automated Workflow (for AI agents)
 ```bash
-# Option A: Work on existing issue
-devflow issues --work --issue 123 --branch-desc "add-login" --yes
+# Create branch
+devflow branch --type feat --ticket 123 --description "add-login" --yes
+
+# Make changes and commit
 git add -A
 devflow commit --type feat --scope auth --message "add login form" --yes
+
+# Create PR
 devflow pr --title "Add login form" --summary "Implements login UI" --yes
-
-# Option B: Create new issue + branch
-devflow issue --type task --title "Add login form" --create-branch --branch-desc "add-login" --yes
-git add -A
-devflow commit --type feat --scope auth --message "add login form" --yes
-devflow pr --title "Add login form" --summary "Implements login UI" --yes
-```
-
-## Project Board Integration
-
-When `project` is configured in `.devflow/config.json`, devflow automatically:
-
-1. **`devflow issues`** - Lists items from your GitHub Project board
-2. **`devflow issues --work`** - Assigns issue to you and moves to "In Progress"
-3. **`devflow pr`** - Moves linked issue to "In Review" when PR is created
-4. **Merge** - GitHub auto-closes issue (via "Closes #N" in PR body)
-
-### Project Configuration Example
-```json
-{
-  "project": {
-    "enabled": true,
-    "number": 1,
-    "statusField": "Status",
-    "statuses": {
-      "todo": "Todo",
-      "inProgress": "In Progress",
-      "inReview": "In Review",
-      "done": "Done"
-    }
-  }
-}
 ```

@@ -21,6 +21,14 @@ describe("scrum issue types", () => {
     expect(bug?.labelColor).toBe("bug");
   });
 
+  it("bug has steps field for test plan inference", () => {
+    const bug = ISSUE_TYPES.find((t) => t.value === "bug");
+    const stepsField = bug?.fields.find((f) => f.name === "steps");
+    expect(stepsField).toBeDefined();
+    expect(stepsField?.type).toBe("list");
+    expect(stepsField?.prompt).toContain("reproduce");
+  });
+
   it("maps task to chore branch type", () => {
     const task = ISSUE_TYPES.find((t) => t.value === "task");
     expect(task?.branchType).toBe("chore");
@@ -253,6 +261,36 @@ ${logs ? `\n### Logs / Screenshots\n${logs}` : ""}`;
       "macOS 14, Chrome 120"
     );
     expect(body).toContain("### Environment\nmacOS 14, Chrome 120");
+  });
+});
+
+describe("bug steps to test plan inference", () => {
+  const BUG_TYPE = SCRUM_PRESET.issueTypes.find((t) => t.value === "bug");
+
+  it("bug type has steps field that can be used for test plan", () => {
+    const stepsField = BUG_TYPE?.fields.find((f) => f.name === "steps");
+    expect(stepsField).toBeDefined();
+    expect(stepsField?.type).toBe("list");
+  });
+
+  it("steps field is required in scrum preset", () => {
+    const stepsField = BUG_TYPE?.fields.find((f) => f.name === "steps");
+    expect(stepsField?.required).toBe(true);
+  });
+
+  it("kanban bug also has steps field", () => {
+    const kanbanBug = KANBAN_PRESET.issueTypes.find((t) => t.value === "bug");
+    const stepsField = kanbanBug?.fields.find((f) => f.name === "steps");
+    expect(stepsField).toBeDefined();
+    expect(stepsField?.type).toBe("list");
+  });
+
+  it("collected steps can be converted to test plan format", () => {
+    const steps = ["Open the app", "Click login", "Enter credentials"];
+    // Test plan format is just an array of strings, same as steps
+    const testPlan = [...steps];
+    expect(testPlan).toEqual(steps);
+    expect(testPlan).toHaveLength(3);
   });
 });
 

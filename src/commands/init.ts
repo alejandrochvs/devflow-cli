@@ -4,6 +4,12 @@ import { confirm, input, select } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { PRESETS, PresetType } from "../config.js";
 import { writeVersionInfo, getCliVersion } from "../devflow-version.js";
+import {
+  selectWithBack,
+  inputWithBack,
+  confirmWithBack,
+  BACK_VALUE,
+} from "../prompts.js";
 
 interface Scope {
   value: string;
@@ -62,11 +68,12 @@ export async function initCommand(): Promise<void> {
     const configPath = resolve(devflowDir, "config.json");
 
     if (existsSync(configPath)) {
-      const overwrite = await confirm({
+      const overwrite = await confirmWithBack({
         message: "Devflow config already exists. Overwrite?",
         default: false,
+        showBack: false,
       });
-      if (!overwrite) {
+      if (overwrite !== true) {
         console.log("Aborted.");
         process.exit(0);
       }
@@ -74,139 +81,260 @@ export async function initCommand(): Promise<void> {
 
     console.log("\n  devflow setup\n");
 
-    // 0. Preset selection
-    const preset = await select<PresetType>({
-      message: "Select a workflow preset:",
-      choices: [
-        { value: "scrum" as PresetType, name: "Scrum - User stories, sprints, acceptance criteria" },
-        { value: "kanban" as PresetType, name: "Kanban - Simple flow-based workflow" },
-        { value: "simple" as PresetType, name: "Simple - Minimal configuration, no ticket required" },
-        { value: "custom" as PresetType, name: "Custom - Configure everything manually" },
-      ],
-    });
-
-    const presetConfig = PRESETS[preset];
-    console.log("");
-
-    // 1. Ticket base URL (skip for simple preset since no tickets)
-    let ticketBaseUrl = "";
-    let useGitHubIssues = false;
-
-    if (preset !== "simple") {
-      const detectedIssuesUrl = getGitHubIssuesUrl();
-      ticketBaseUrl = await input({
-        message: "Ticket base URL (e.g., https://github.com/org/repo/issues):",
-        default: detectedIssuesUrl,
-      });
-
-      // 1b. GitHub Issues integration
-      useGitHubIssues = await confirm({
-        message: "Use GitHub Issues for ticket tracking? (enables issue picker in branch command)",
-        default: ticketBaseUrl.includes("github.com"),
-      });
+    // State for configuration
+    interface InitState {
+      preset: PresetType;
+      ticketBaseUrl: string;
+      useGitHubIssues: boolean;
+      scopeChoice: string;
+      scopes: Scope[];
+      checklistChoice: string;
+      checklist: string[];
+      customizeFormats: boolean;
+      branchFormat: string;
+      commitFormat: string;
     }
 
-    // 2. Scopes
-    const scopes: Scope[] = [];
-    const scopeChoice = await select({
-      message: "How would you like to configure commit scopes?",
-      choices: [
-        { value: "defaults", name: "Use defaults (core, ui, api, config, deps, ci)" },
-        { value: "custom", name: "Define custom scopes" },
-        { value: "skip", name: "Skip - configure later" },
-      ],
-    });
+    const state: InitState = {
+      preset: "scrum",
+      ticketBaseUrl: "",
+      useGitHubIssues: false,
+      scopeChoice: "",
+      scopes: [],
+      checklistChoice: "",
+      checklist: [...DEFAULT_CHECKLIST],
+      customizeFormats: false,
+      branchFormat: "",
+      commitFormat: "{type}[{ticket}]{breaking}({scope}): {message}",
+    };
 
-    if (scopeChoice === "defaults") {
-      scopes.push(
-        { value: "core", description: "Core functionality" },
-        { value: "ui", description: "UI components" },
-        { value: "api", description: "API layer" },
-        { value: "config", description: "Configuration" },
-        { value: "deps", description: "Dependencies" },
-        { value: "ci", description: "CI/CD" },
-      );
-    } else if (scopeChoice === "custom") {
-      console.log("\nAdd scopes one at a time. Press Enter with empty name to finish.\n");
-      let addingScopes = true;
-      while (addingScopes) {
-        const value = await input({
-          message: `Scope name${scopes.length > 0 ? " (blank to finish)" : ""}:`,
-        });
-        if (!value.trim()) {
-          addingScopes = false;
-        } else {
-          const description = await input({
-            message: `Description for "${value.trim()}":`,
+    // Step-based flow with back navigation
+    type StepName = "preset" | "ticketUrl" | "githubIssues" | "scopes" | "checklist" | "formats" | "done";
+    let currentStep: StepName = "preset";
+
+    while (currentStep !== "done") {
+      switch (currentStep) {
+        case "preset": {
+          const result = await selectWithBack<PresetType>({
+            message: "Select a workflow preset:",
+            choices: [
+              { value: "scrum" as PresetType, name: "Scrum - User stories, sprints, acceptance criteria" },
+              { value: "kanban" as PresetType, name: "Kanban - Simple flow-based workflow" },
+              { value: "simple" as PresetType, name: "Simple - Minimal configuration, no ticket required" },
+              { value: "custom" as PresetType, name: "Custom - Configure everything manually" },
+            ],
+            default: state.preset,
+            showBack: false, // First step
           });
-          scopes.push({
-            value: value.trim().toLowerCase(),
-            description: description.trim() || value.trim(),
-          });
-        }
-      }
-    }
 
-    // 3. Checklist (shown in PR descriptions)
-    let checklist = [...DEFAULT_CHECKLIST];
-    const checklistChoice = await select({
-      message: "PR checklist items (shown in pull request descriptions):",
-      choices: [
-        {
-          value: "defaults",
-          name: `Use defaults (${DEFAULT_CHECKLIST.length} items: conventions, self-review, no warnings)`,
-        },
-        { value: "custom", name: "Define custom checklist" },
-        { value: "skip", name: "Skip - no checklist" },
-      ],
-    });
-
-    if (checklistChoice === "custom") {
-      console.log("\nAdd checklist items one at a time. Press Enter with empty text to finish.\n");
-      checklist = [];
-      let addingChecklist = true;
-      while (addingChecklist) {
-        const item = await input({
-          message: `Checklist item${checklist.length > 0 ? " (blank to finish)" : ""}:`,
-        });
-        if (!item.trim()) {
-          if (checklist.length === 0) {
-            checklist = [...DEFAULT_CHECKLIST];
-            console.log("Using default checklist.");
+          if (result === BACK_VALUE) {
+            // Can't go back from first step
+          } else {
+            state.preset = result as PresetType;
+            state.branchFormat = PRESETS[state.preset].branchFormat;
+            console.log("");
+            // Skip ticket URL for simple preset
+            currentStep = state.preset === "simple" ? "scopes" : "ticketUrl";
           }
-          addingChecklist = false;
-        } else {
-          checklist.push(item.trim());
+          break;
         }
+
+        case "ticketUrl": {
+          const detectedIssuesUrl = getGitHubIssuesUrl();
+          const result = await inputWithBack({
+            message: "Ticket base URL (e.g., https://github.com/org/repo/issues):",
+            default: state.ticketBaseUrl || detectedIssuesUrl,
+            showBack: true,
+          });
+
+          if (result === BACK_VALUE) {
+            currentStep = "preset";
+          } else {
+            state.ticketBaseUrl = result;
+            currentStep = "githubIssues";
+          }
+          break;
+        }
+
+        case "githubIssues": {
+          const result = await confirmWithBack({
+            message: "Use GitHub Issues for ticket tracking? (enables issue picker in branch command)",
+            default: state.useGitHubIssues || state.ticketBaseUrl.includes("github.com"),
+            showBack: true,
+          });
+
+          if (result === BACK_VALUE) {
+            currentStep = "ticketUrl";
+          } else {
+            state.useGitHubIssues = result === true;
+            currentStep = "scopes";
+          }
+          break;
+        }
+
+        case "scopes": {
+          const result = await selectWithBack({
+            message: "How would you like to configure commit scopes?",
+            choices: [
+              { value: "defaults", name: "Use defaults (core, ui, api, config, deps, ci)" },
+              { value: "custom", name: "Define custom scopes" },
+              { value: "skip", name: "Skip - configure later" },
+            ],
+            default: state.scopeChoice || undefined,
+            showBack: true,
+          });
+
+          if (result === BACK_VALUE) {
+            currentStep = state.preset === "simple" ? "preset" : "githubIssues";
+          } else {
+            state.scopeChoice = result;
+            state.scopes = [];
+
+            if (result === "defaults") {
+              state.scopes = [
+                { value: "core", description: "Core functionality" },
+                { value: "ui", description: "UI components" },
+                { value: "api", description: "API layer" },
+                { value: "config", description: "Configuration" },
+                { value: "deps", description: "Dependencies" },
+                { value: "ci", description: "CI/CD" },
+              ];
+              currentStep = "checklist";
+            } else if (result === "custom") {
+              console.log("\nAdd scopes one at a time. Press Enter with empty name to finish.\n");
+              let addingScopes = true;
+              while (addingScopes) {
+                const scopeValue = await input({
+                  message: `Scope name${state.scopes.length > 0 ? " (blank to finish)" : ""}:`,
+                });
+                if (!scopeValue.trim()) {
+                  addingScopes = false;
+                } else {
+                  const description = await input({
+                    message: `Description for "${scopeValue.trim()}":`,
+                  });
+                  state.scopes.push({
+                    value: scopeValue.trim().toLowerCase(),
+                    description: description.trim() || scopeValue.trim(),
+                  });
+                }
+              }
+              currentStep = "checklist";
+            } else {
+              currentStep = "checklist";
+            }
+          }
+          break;
+        }
+
+        case "checklist": {
+          const result = await selectWithBack({
+            message: "PR checklist items (shown in pull request descriptions):",
+            choices: [
+              {
+                value: "defaults",
+                name: `Use defaults (${DEFAULT_CHECKLIST.length} items: conventions, self-review, no warnings)`,
+              },
+              { value: "custom", name: "Define custom checklist" },
+              { value: "skip", name: "Skip - no checklist" },
+            ],
+            default: state.checklistChoice || undefined,
+            showBack: true,
+          });
+
+          if (result === BACK_VALUE) {
+            currentStep = "scopes";
+          } else {
+            state.checklistChoice = result;
+
+            if (result === "custom") {
+              console.log("\nAdd checklist items one at a time. Press Enter with empty text to finish.\n");
+              state.checklist = [];
+              let addingChecklist = true;
+              while (addingChecklist) {
+                const item = await input({
+                  message: `Checklist item${state.checklist.length > 0 ? " (blank to finish)" : ""}:`,
+                });
+                if (!item.trim()) {
+                  if (state.checklist.length === 0) {
+                    state.checklist = [...DEFAULT_CHECKLIST];
+                    console.log("Using default checklist.");
+                  }
+                  addingChecklist = false;
+                } else {
+                  state.checklist.push(item.trim());
+                }
+              }
+            } else if (result === "skip") {
+              state.checklist = [];
+            } else {
+              state.checklist = [...DEFAULT_CHECKLIST];
+            }
+            currentStep = "formats";
+          }
+          break;
+        }
+
+        case "formats": {
+          const result = await confirmWithBack({
+            message: "Customize branch/commit formats? (advanced)",
+            default: state.customizeFormats,
+            showBack: true,
+          });
+
+          if (result === BACK_VALUE) {
+            currentStep = "checklist";
+          } else {
+            state.customizeFormats = result === true;
+
+            if (state.customizeFormats) {
+              console.log("\nAvailable placeholders:");
+              console.log("  Branch: {type}, {ticket}, {description}");
+              console.log("  Commit: {type}, {ticket}, {scope}, {message}, {breaking}\n");
+
+              const branchResult = await inputWithBack({
+                message: "Branch format:",
+                default: state.branchFormat,
+                showBack: true,
+              });
+
+              if (branchResult === BACK_VALUE) {
+                // Stay on formats step
+                break;
+              }
+              state.branchFormat = branchResult;
+
+              const commitResult = await inputWithBack({
+                message: "Commit format:",
+                default: state.commitFormat,
+                showBack: true,
+              });
+
+              if (commitResult === BACK_VALUE) {
+                // Stay on formats step
+                break;
+              }
+              state.commitFormat = commitResult;
+            }
+            currentStep = "done";
+          }
+          break;
+        }
+
+        default:
+          currentStep = "done";
       }
-    } else if (checklistChoice === "skip") {
-      checklist = [];
     }
 
-    // 4. Format customization
-    let branchFormat = presetConfig.branchFormat;
-    let commitFormat = "{type}[{ticket}]{breaking}({scope}): {message}";
-
-    const customizeFormats = await confirm({
-      message: "Customize branch/commit formats? (advanced)",
-      default: false,
-    });
-
-    if (customizeFormats) {
-      console.log("\nAvailable placeholders:");
-      console.log("  Branch: {type}, {ticket}, {description}");
-      console.log("  Commit: {type}, {ticket}, {scope}, {message}, {breaking}\n");
-
-      branchFormat = await input({
-        message: "Branch format:",
-        default: branchFormat,
-      });
-
-      commitFormat = await input({
-        message: "Commit format:",
-        default: commitFormat,
-      });
-    }
+    // Extract configuration from state
+    const preset = state.preset;
+    const presetConfig = PRESETS[preset];
+    const ticketBaseUrl = state.ticketBaseUrl;
+    const useGitHubIssues = state.useGitHubIssues;
+    const scopes = state.scopes;
+    const checklist = state.checklist;
+    const branchFormat = state.branchFormat || presetConfig.branchFormat;
+    const commitFormat = state.commitFormat;
 
     // 5. Commitlint setup (validates commit messages on git commit)
     const commitlintChoice = await select({

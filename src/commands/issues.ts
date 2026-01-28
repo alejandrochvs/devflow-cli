@@ -14,6 +14,11 @@ import {
 } from "../providers/projects.js";
 import { formatBranchName } from "./branch.js";
 import { inferBranchTypeFromLabels } from "../providers/tickets.js";
+import {
+  selectWithBack,
+  inputWithBack,
+  BACK_VALUE,
+} from "../prompts.js";
 
 export interface IssuesOptions {
   status?: string;
@@ -148,109 +153,229 @@ async function startWork(options: IssuesOptions, config: DevflowConfig, ctx: Pro
     process.exit(1);
   }
 
-  let selectedItem: ProjectItem;
+  // State for the flow
+  interface WorkState {
+    selectedItem: ProjectItem | undefined;
+    branchDesc: string;
+    branchType: string;
+    inferredType: string | undefined;
+  }
 
+  const state: WorkState = {
+    selectedItem: undefined,
+    branchDesc: options.branchDesc || "",
+    branchType: "",
+    inferredType: undefined,
+  };
+
+  // Load items for selection
+  const allItems = listProjectItems(ctx.projectInfo.id, config.project!.statusField);
+  const todoItems = allItems.filter((item) => item.status === config.project!.statuses.todo);
+
+  // If issue specified via flag, pre-select it
   if (options.issue) {
-    // Use specified issue
     const issueNumber = parseInt(options.issue, 10);
-    const allItems = listProjectItems(ctx.projectInfo.id, config.project!.statusField);
     const item = allItems.find((i) => i.issueNumber === issueNumber);
 
     if (!item) {
       console.error(yellow(`Issue #${issueNumber} not found in project.`));
       process.exit(1);
     }
-    selectedItem = item;
-  } else {
-    // Interactive selection - show Todo items (and optionally In Progress)
-    const allItems = listProjectItems(ctx.projectInfo.id, config.project!.statusField);
-    const todoItems = allItems.filter((item) => item.status === config.project!.statuses.todo);
-
-    if (todoItems.length === 0) {
-      console.log(dim("No Todo items found in project."));
-      process.exit(0);
-    }
-
-    const choices = todoItems.map((item) => ({
-      value: item,
-      name: `#${item.issueNumber} ${item.title} ${formatAssignees(item.assignees)}`,
-    }));
-
-    selectedItem = await select({
-      message: "Select an issue to work on:",
-      choices,
-    });
+    state.selectedItem = item;
   }
 
-  console.log(`\n${dim("───")} ${bold("Starting Work")} ${dim("───")}`);
-  console.log(`${bold("Issue:")}  ${cyan(`#${selectedItem.issueNumber}`)} ${selectedItem.title}`);
+  // Step-based flow with back navigation
+  type StepName = "selectIssue" | "branchDesc" | "branchType" | "confirm";
+  let currentStep: StepName = options.issue ? "branchDesc" : "selectIssue";
 
-  // Determine branch description
-  let branchDesc: string;
+  // Skip steps based on provided options
   if (options.branchDesc) {
-    branchDesc = options.branchDesc;
-  } else if (options.yes) {
-    branchDesc = toKebabCase(selectedItem.title).slice(0, 50);
-  } else {
-    branchDesc = await input({
-      message: "Branch description:",
-      default: toKebabCase(selectedItem.title).slice(0, 50),
-      validate: (val) => val.trim().length > 0 || "Description is required",
-    });
+    state.branchDesc = options.branchDesc;
+    currentStep = state.selectedItem ? "branchType" : "selectIssue";
   }
 
-  // Infer branch type from labels
-  const inferredType = inferBranchTypeFromLabels(selectedItem.labels);
-  let branchType: string;
+  while (currentStep !== undefined) {
+    switch (currentStep) {
+      case "selectIssue": {
+        if (options.issue) {
+          currentStep = "branchDesc";
+          break;
+        }
 
-  if (inferredType && config.branchTypes.includes(inferredType)) {
-    branchType = inferredType;
-    console.log(dim(`  Inferred type from labels: ${cyan(branchType)}`));
-  } else if (options.yes) {
-    branchType = "feat";
-  } else {
-    branchType = await select({
-      message: "Branch type:",
-      choices: config.branchTypes.map((t) => ({ value: t, name: t })),
-      default: "feat",
-    });
+        if (todoItems.length === 0) {
+          console.log(dim("No Todo items found in project."));
+          process.exit(0);
+        }
+
+        const choices = todoItems.map((item) => ({
+          value: item,
+          name: `#${item.issueNumber} ${item.title} ${formatAssignees(item.assignees)}`,
+        }));
+
+        const result = await selectWithBack({
+          message: "Select an issue to work on:",
+          choices,
+          showBack: false, // First step
+        });
+
+        if (result === BACK_VALUE) {
+          // Can't go back from first step
+        } else {
+          state.selectedItem = result as ProjectItem;
+          state.inferredType = inferBranchTypeFromLabels(state.selectedItem.labels);
+          currentStep = "branchDesc";
+        }
+        break;
+      }
+
+      case "branchDesc": {
+        if (!state.selectedItem) {
+          currentStep = "selectIssue";
+          break;
+        }
+
+        console.log(`\n${dim("───")} ${bold("Starting Work")} ${dim("───")}`);
+        console.log(`${bold("Issue:")}  ${cyan(`#${state.selectedItem.issueNumber}`)} ${state.selectedItem.title}`);
+
+        if (options.branchDesc) {
+          currentStep = "branchType";
+          break;
+        }
+
+        if (options.yes) {
+          state.branchDesc = toKebabCase(state.selectedItem.title).slice(0, 50);
+          currentStep = "branchType";
+          break;
+        }
+
+        const result = await inputWithBack({
+          message: "Branch description:",
+          default: state.branchDesc || toKebabCase(state.selectedItem.title).slice(0, 50),
+          validate: (val) => val.trim().length > 0 || "Description is required",
+          showBack: !options.issue,
+        });
+
+        if (result === BACK_VALUE) {
+          currentStep = "selectIssue";
+        } else {
+          state.branchDesc = result;
+          currentStep = "branchType";
+        }
+        break;
+      }
+
+      case "branchType": {
+        if (!state.selectedItem) {
+          currentStep = "selectIssue";
+          break;
+        }
+
+        // Check for inferred type
+        if (state.inferredType && config.branchTypes.includes(state.inferredType)) {
+          state.branchType = state.inferredType;
+          console.log(dim(`  Inferred type from labels: ${cyan(state.branchType)}`));
+          currentStep = "confirm";
+          break;
+        }
+
+        if (options.yes) {
+          state.branchType = "feat";
+          currentStep = "confirm";
+          break;
+        }
+
+        const result = await selectWithBack({
+          message: "Branch type:",
+          choices: config.branchTypes.map((t) => ({ value: t, name: t })),
+          default: state.branchType || "feat",
+          showBack: true,
+        });
+
+        if (result === BACK_VALUE) {
+          currentStep = "branchDesc";
+        } else {
+          state.branchType = result;
+          currentStep = "confirm";
+        }
+        break;
+      }
+
+      case "confirm": {
+        if (!state.selectedItem) {
+          currentStep = "selectIssue";
+          break;
+        }
+
+        const branchName = formatBranchName(config.branchFormat, {
+          type: state.branchType,
+          ticket: `#${state.selectedItem.issueNumber}`,
+          description: toKebabCase(state.branchDesc),
+        });
+
+        console.log(`${bold("Branch:")} ${cyan(branchName)}`);
+
+        // Preview actions
+        const isAssigned = state.selectedItem.assignees.includes(currentUser);
+        const needsStatusChange = state.selectedItem.status !== config.project!.statuses.inProgress;
+
+        console.log(`\n${bold("Actions:")}`);
+        if (!isAssigned) console.log(`  ${dim("→")} Assign to @${currentUser}`);
+        if (needsStatusChange) console.log(`  ${dim("→")} Move to "${config.project!.statuses.inProgress}"`);
+        console.log(`  ${dim("→")} Create branch: ${branchName}`);
+        console.log("");
+
+        if (options.dryRun) {
+          console.log(dim("[dry-run] No changes made."));
+          return;
+        }
+
+        // Confirm
+        if (!options.yes) {
+          const confirmResult = await selectWithBack({
+            message: "Proceed?",
+            choices: [
+              { value: "yes", name: "Yes, start working" },
+              { value: "no", name: "No, abort" },
+            ],
+            default: "yes",
+            showBack: true,
+          });
+
+          if (confirmResult === BACK_VALUE) {
+            currentStep = state.inferredType ? "branchDesc" : "branchType";
+            break;
+          }
+
+          if (confirmResult !== "yes") {
+            console.log("Aborted.");
+            process.exit(0);
+          }
+        }
+
+        // Exit loop and execute actions
+        currentStep = undefined as unknown as StepName;
+        break;
+      }
+
+      default:
+        currentStep = undefined as unknown as StepName;
+    }
   }
 
+  if (!state.selectedItem) {
+    process.exit(0);
+  }
+
+  const selectedItem = state.selectedItem;
   const branchName = formatBranchName(config.branchFormat, {
-    type: branchType,
+    type: state.branchType,
     ticket: `#${selectedItem.issueNumber}`,
-    description: toKebabCase(branchDesc),
+    description: toKebabCase(state.branchDesc),
   });
-
-  console.log(`${bold("Branch:")} ${cyan(branchName)}`);
 
   // Preview actions
   const isAssigned = selectedItem.assignees.includes(currentUser);
   const needsStatusChange = selectedItem.status !== config.project!.statuses.inProgress;
-
-  console.log(`\n${bold("Actions:")}`);
-  if (!isAssigned) console.log(`  ${dim("→")} Assign to @${currentUser}`);
-  if (needsStatusChange) console.log(`  ${dim("→")} Move to "${config.project!.statuses.inProgress}"`);
-  console.log(`  ${dim("→")} Create branch: ${branchName}`);
-  console.log("");
-
-  if (options.dryRun) {
-    console.log(dim("[dry-run] No changes made."));
-    return;
-  }
-
-  // Confirm
-  if (!options.yes) {
-    const confirmed = await confirm({
-      message: "Proceed?",
-      default: true,
-    });
-
-    if (!confirmed) {
-      console.log("Aborted.");
-      process.exit(0);
-    }
-  }
 
   // Execute actions
   let success = true;

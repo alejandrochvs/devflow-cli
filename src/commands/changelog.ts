@@ -2,6 +2,11 @@ import { execSync } from "child_process";
 import { writeFileSync, existsSync, readFileSync } from "fs";
 import { confirm, input } from "@inquirer/prompts";
 import { bold, dim, green, cyan, gray } from "../colors.js";
+import {
+  inputWithBack,
+  confirmWithBack,
+  BACK_VALUE,
+} from "../prompts.js";
 
 interface ChangelogEntry {
   type: string;
@@ -162,44 +167,84 @@ export async function changelogCommand(options: ChangelogOptions = {}): Promise<
       return;
     }
 
-    // Get version from flag or prompt
-    let version: string;
+    // Step-based flow with back navigation
+    type StepName = "version" | "confirm" | "execute";
+    let currentStep: StepName = "version";
+    let version: string = options.version || "";
+    const defaultVersion = latestTag ? bumpVersion(latestTag, entries) : "0.1.0";
+
+    // Skip to confirm if version provided
     if (options.version) {
-      version = options.version;
-    } else {
-      const defaultVersion = latestTag ? bumpVersion(latestTag, entries) : "0.1.0";
-      if (options.yes) {
-        version = defaultVersion;
-      } else {
-        version = await input({
-          message: "Version for this changelog entry:",
-          default: defaultVersion,
-          validate: (val) => val.trim().length > 0 || "Version is required",
-        });
+      currentStep = "confirm";
+    }
+
+    let writeFile: boolean = false;
+
+    while (currentStep !== "execute") {
+      switch (currentStep) {
+        case "version": {
+          if (options.yes) {
+            version = defaultVersion;
+            currentStep = "confirm";
+            break;
+          }
+
+          const result = await inputWithBack({
+            message: "Version for this changelog entry:",
+            default: version || defaultVersion,
+            validate: (val) => val.trim().length > 0 || "Version is required",
+            showBack: false, // First step
+          });
+
+          if (result === BACK_VALUE) {
+            // Can't go back from first step
+          } else {
+            version = result;
+            currentStep = "confirm";
+          }
+          break;
+        }
+
+        case "confirm": {
+          const date = new Date().toISOString().split("T")[0];
+          const changelog = formatChangelog(version.trim(), entries, date);
+
+          console.log(`\n${dim("Preview:")}\n`);
+          console.log(changelog);
+
+          if (options.dryRun) {
+            console.log(dim("[dry-run] No file written."));
+            return;
+          }
+
+          // Confirm (skip if --yes)
+          if (options.yes) {
+            writeFile = true;
+            currentStep = "execute";
+          } else {
+            const result = await confirmWithBack({
+              message: "Write to CHANGELOG.md?",
+              default: true,
+              showBack: !options.version,
+            });
+
+            if (result === BACK_VALUE) {
+              currentStep = "version";
+            } else {
+              writeFile = result === true;
+              currentStep = "execute";
+            }
+          }
+          break;
+        }
+
+        default:
+          currentStep = "execute";
       }
     }
 
     const date = new Date().toISOString().split("T")[0];
     const changelog = formatChangelog(version.trim(), entries, date);
-
-    console.log(`\n${dim("Preview:")}\n`);
-    console.log(changelog);
-
-    if (options.dryRun) {
-      console.log(dim("[dry-run] No file written."));
-      return;
-    }
-
-    // Confirm (skip if --yes)
-    let writeFile: boolean;
-    if (options.yes) {
-      writeFile = true;
-    } else {
-      writeFile = await confirm({
-        message: "Write to CHANGELOG.md?",
-        default: true,
-      });
-    }
 
     if (writeFile) {
       const changelogPath = "CHANGELOG.md";

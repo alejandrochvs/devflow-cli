@@ -4,6 +4,7 @@ import { loadConfig } from "../config.js";
 import { bold, dim, green, cyan, gray } from "../colors.js";
 import { setTestPlan } from "../test-plan.js";
 import { createTicketProvider, inferBranchTypeFromLabels, Ticket } from "../providers/tickets.js";
+import { selectWithBack, inputWithBack, BACK_VALUE } from "../prompts.js";
 
 export function formatBranchName(
   format: string,
@@ -48,105 +49,204 @@ export interface BranchOptions {
   yes?: boolean;
 }
 
+interface BranchState {
+  ticket: string;
+  selectedIssue?: Ticket;
+  inferredType?: string;
+  suggestedDescription?: string;
+  type: string;
+  description: string;
+}
+
 export async function branchCommand(options: BranchOptions = {}): Promise<void> {
   try {
     const config = loadConfig();
     const branchFormat = config.branchFormat;
     const needsTicket = branchFormat.includes("{ticket}");
-
-    // Check if ticket provider is configured
     const ticketProvider = createTicketProvider(config.ticketProvider);
 
-    let ticket: string | undefined;
-    let selectedIssue: Ticket | undefined;
-    let inferredType: string | undefined;
-    let suggestedDescription: string | undefined;
+    // Initialize state
+    const state: BranchState = {
+      ticket: options.ticket?.trim() || "",
+      type: options.type || "",
+      description: options.description || "",
+    };
 
-    // Use ticket from flag if provided
+    // Step-based flow with back navigation
+    type StepName = "ticketMethod" | "ticketInput" | "ticketPick" | "type" | "description";
+
+    // Determine starting step
+    let currentStep: StepName = "ticketMethod";
     if (options.ticket !== undefined) {
-      ticket = options.ticket.trim() || "UNTRACKED";
-    } else if (ticketProvider && needsTicket) {
-      // If provider is configured and format needs ticket, offer issue picker
-      const ticketMethod = await select({
-        message: "How do you want to select the ticket?",
-        choices: [
-          { value: "pick", name: "Pick from open issues (assigned to me)" },
-          { value: "manual", name: "Enter manually" },
-          { value: "skip", name: "Skip (UNTRACKED)" },
-        ],
-      });
-
-      if (ticketMethod === "pick") {
-        const issues = ticketProvider.listOpen({ assignee: "@me" });
-
-        if (issues.length === 0) {
-          console.log(dim("No open issues assigned to you. Falling back to manual input."));
-          ticket = await input({
-            message: "Ticket number (leave blank for UNTRACKED):",
-          });
-          ticket = ticket.trim() || "UNTRACKED";
-        } else {
-          selectedIssue = await select({
-            message: "Select an issue:",
-            choices: issues.map(formatIssueChoice),
-          });
-
-          ticket = selectedIssue.id;
-          inferredType = inferBranchTypeFromLabels(selectedIssue.labels);
-          suggestedDescription = toKebabCase(selectedIssue.title);
-
-          if (inferredType) {
-            console.log(dim(`  Inferred type from labels: ${cyan(inferredType)}`));
-          }
-        }
-      } else if (ticketMethod === "manual") {
-        ticket = await input({
-          message: "Ticket number (leave blank for UNTRACKED):",
-        });
-        ticket = ticket.trim() || "UNTRACKED";
+      state.ticket = options.ticket.trim() || "UNTRACKED";
+      currentStep = "type";
+    } else if (!ticketProvider || !needsTicket) {
+      if (needsTicket) {
+        currentStep = "ticketInput";
       } else {
-        ticket = "UNTRACKED";
+        currentStep = "type";
       }
-    } else if (needsTicket) {
-      // No provider, use manual input
-      ticket = await input({
-        message: "Ticket number (leave blank for UNTRACKED):",
-      });
-      ticket = ticket.trim() || "UNTRACKED";
     }
 
-    // Get type from flag or prompt
-    let type: string;
     if (options.type) {
-      type = options.type;
-    } else {
-      const typeChoices = config.branchTypes.map((t) => ({ value: t, name: t }));
-      const defaultType = inferredType && config.branchTypes.includes(inferredType) ? inferredType : undefined;
-
-      type = await select({
-        message: "Select branch type:",
-        choices: typeChoices,
-        default: defaultType,
-      });
+      state.type = options.type;
+      if (currentStep === "type") currentStep = "description";
     }
 
-    // Get description from flag or prompt
-    let description: string;
     if (options.description) {
-      description = options.description;
-    } else {
-      description = await input({
-        message: "Short description:",
-        default: suggestedDescription,
-        validate: (val) => val.trim().length > 0 || "Description is required",
-      });
+      state.description = options.description;
     }
 
-    const kebab = toKebabCase(description);
+    // Skip interactive flow if all options provided
+    if (options.ticket !== undefined && options.type && options.description) {
+      state.ticket = options.ticket.trim() || "UNTRACKED";
+      // Skip to branch creation
+    } else {
+      // Interactive step flow
+      while (currentStep !== undefined) {
+        switch (currentStep) {
+          case "ticketMethod": {
+            const result = await selectWithBack({
+              message: "How do you want to select the ticket?",
+              choices: [
+                { value: "pick", name: "Pick from open issues (assigned to me)" },
+                { value: "manual", name: "Enter manually" },
+                { value: "skip", name: "Skip (UNTRACKED)" },
+              ],
+              showBack: false, // First step, no back
+            });
+
+            if (result === "pick") {
+              currentStep = "ticketPick";
+            } else if (result === "manual") {
+              currentStep = "ticketInput";
+            } else {
+              state.ticket = "UNTRACKED";
+              currentStep = "type";
+            }
+            break;
+          }
+
+          case "ticketInput": {
+            const showBack = ticketProvider && needsTicket;
+            const result = await inputWithBack({
+              message: "Ticket number (leave blank for UNTRACKED):",
+              default: state.ticket !== "UNTRACKED" ? state.ticket : undefined,
+              showBack,
+            });
+
+            if (result === BACK_VALUE) {
+              currentStep = "ticketMethod";
+            } else {
+              state.ticket = result.trim() || "UNTRACKED";
+              currentStep = options.type ? "description" : "type";
+            }
+            break;
+          }
+
+          case "ticketPick": {
+            if (!ticketProvider) {
+              currentStep = "ticketInput";
+              break;
+            }
+
+            const issues = ticketProvider.listOpen({ assignee: "@me" });
+
+            if (issues.length === 0) {
+              console.log(dim("No open issues assigned to you. Falling back to manual input."));
+              currentStep = "ticketInput";
+              break;
+            }
+
+            const result = await selectWithBack({
+              message: "Select an issue:",
+              choices: issues.map(formatIssueChoice),
+              showBack: true,
+            });
+
+            if (result === BACK_VALUE) {
+              currentStep = "ticketMethod";
+            } else {
+              state.selectedIssue = result as Ticket;
+              state.ticket = state.selectedIssue.id;
+              state.inferredType = inferBranchTypeFromLabels(state.selectedIssue.labels);
+              state.suggestedDescription = toKebabCase(state.selectedIssue.title);
+
+              if (state.inferredType) {
+                console.log(dim(`  Inferred type from labels: ${cyan(state.inferredType)}`));
+              }
+              currentStep = options.type ? "description" : "type";
+            }
+            break;
+          }
+
+          case "type": {
+            if (options.type) {
+              currentStep = "description";
+              break;
+            }
+
+            const typeChoices = config.branchTypes.map((t) => ({ value: t, name: t }));
+            const defaultType = state.inferredType && config.branchTypes.includes(state.inferredType)
+              ? state.inferredType
+              : state.type || undefined;
+
+            // Determine if we can go back
+            const canGoBack = needsTicket && !options.ticket;
+
+            const result = await selectWithBack({
+              message: "Select branch type:",
+              choices: typeChoices,
+              default: defaultType,
+              showBack: canGoBack,
+            });
+
+            if (result === BACK_VALUE) {
+              if (ticketProvider && needsTicket) {
+                currentStep = state.selectedIssue ? "ticketPick" : "ticketMethod";
+              } else if (needsTicket) {
+                currentStep = "ticketInput";
+              }
+            } else {
+              state.type = result;
+              currentStep = "description";
+            }
+            break;
+          }
+
+          case "description": {
+            if (options.description) {
+              currentStep = undefined as unknown as StepName;
+              break;
+            }
+
+            const result = await inputWithBack({
+              message: "Short description:",
+              default: state.suggestedDescription || state.description || undefined,
+              validate: (val) => val.trim().length > 0 || "Description is required",
+              showBack: true,
+            });
+
+            if (result === BACK_VALUE) {
+              currentStep = options.type ? (needsTicket ? "ticketMethod" : "type") : "type";
+            } else {
+              state.description = result;
+              currentStep = undefined as unknown as StepName;
+            }
+            break;
+          }
+
+          default:
+            currentStep = undefined as unknown as StepName;
+        }
+      }
+    }
+
+    const kebab = toKebabCase(state.description);
 
     const branchName = formatBranchName(branchFormat, {
-      type,
-      ticket,
+      type: state.type,
+      ticket: state.ticket,
       description: kebab,
     });
 
@@ -161,19 +261,60 @@ export async function branchCommand(options: BranchOptions = {}): Promise<void> 
 
     // Confirm (skip if --yes)
     if (!options.yes) {
-      const confirmed = await confirm({
+      const confirmResult = await selectWithBack({
         message: "Create this branch?",
-        default: true,
+        choices: [
+          { value: "yes", name: "Yes, create branch" },
+          { value: "no", name: "No, abort" },
+        ],
+        default: "yes",
+        showBack: true,
       });
 
-      if (!confirmed) {
+      if (confirmResult === BACK_VALUE) {
+        // Restart the flow
+        return branchCommand(options);
+      }
+
+      if (confirmResult !== "yes") {
         console.log("Aborted.");
         process.exit(0);
       }
     }
 
-    execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-    console.log(green(`✓ Branch created: ${branchName}`));
+    // Check if branch already exists
+    let branchExists = false;
+    try {
+      execSync(`git rev-parse --verify ${branchName}`, { stdio: "pipe" });
+      branchExists = true;
+    } catch {
+      branchExists = false;
+    }
+
+    if (branchExists) {
+      const action = await select({
+        message: `Branch "${branchName}" already exists. What do you want to do?`,
+        choices: [
+          { value: "checkout", name: "Checkout the existing branch" },
+          { value: "new", name: "Create with a different name" },
+          { value: "abort", name: "Abort" },
+        ],
+      });
+
+      if (action === "checkout") {
+        execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+        console.log(green(`✓ Checked out existing branch: ${branchName}`));
+      } else if (action === "new") {
+        console.log("Aborted. Please run devflow branch again with a different description.");
+        process.exit(0);
+      } else {
+        console.log("Aborted.");
+        process.exit(0);
+      }
+    } else {
+      execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+      console.log(green(`✓ Branch created: ${branchName}`));
+    }
 
     // Handle test plan from flag or prompt
     if (options.testPlan) {
