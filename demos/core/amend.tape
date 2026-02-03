@@ -8,33 +8,33 @@ Set Width 1000
 Set Height 600
 Set Theme "Catppuccin Mocha"
 Set Padding 20
-Set TypingSpeed 40ms
+Set TypingSpeed 75ms
 
-Sleep 1s
+Sleep 1.5s
 
 # Show recent commits first
 Type "git log --oneline -3"
 Enter
-Sleep 2s
+Sleep 3s
 
 # Run amend command
 Type "devflow amend"
 Enter
-Sleep 2s
+Sleep 3s
 
 # Select files to stage (if any)
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Choose to edit message
 Down
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Edit the message
 Type "fix typo in login validation"
 Enter
-Sleep 2s
+Sleep 3s
 
 # Show result
-Sleep 3s
+Sleep 4s

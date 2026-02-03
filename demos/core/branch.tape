@@ -8,33 +8,33 @@ Set Width 1000
 Set Height 600
 Set Theme "Catppuccin Mocha"
 Set Padding 20
-Set TypingSpeed 40ms
+Set TypingSpeed 75ms
 
-Sleep 1s
+Sleep 1.5s
 
 # Show the command
 Type "devflow branch"
 Enter
-Sleep 2s
+Sleep 3s
 
 # Select "Enter ticket number"
 Down
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Type ticket number
 Type "123"
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Select type (feat)
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Enter description
 Type "add user authentication"
 Enter
-Sleep 2s
+Sleep 3s
 
 # Show result
-Sleep 3s
+Sleep 4s

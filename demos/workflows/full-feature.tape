@@ -1,5 +1,5 @@
 # VHS Tape for full feature workflow
-# Complete workflow: issue -> branch -> commit -> pr
+# Complete workflow: branch -> commit -> pr
 # Run with: vhs demos/workflows/full-feature.tape
 
 Output demos/workflows/full-feature.gif
@@ -8,85 +8,95 @@ Set Width 1000
 Set Height 700
 Set Theme "Catppuccin Mocha"
 Set Padding 20
-Set TypingSpeed 35ms
+Set TypingSpeed 75ms
 
+Sleep 1.5s
+
+# Step 1: Create a feature branch
+Type "# Step 1: Create a feature branch"
+Enter
 Sleep 1s
-
-# Step 1: Check project issues
-Type "# Step 1: Pick an issue from the board"
+Type "devflow branch"
 Enter
-Sleep 500ms
-Type "devflow issues --work"
-Enter
-Sleep 2s
+Sleep 3s
 
-# Select issue
+# Select ticket option
 Down
 Enter
-Sleep 1s
+Sleep 1.5s
 
-# Confirm branch creation
+# Enter ticket number
+Type "42"
 Enter
-Sleep 2s
+Sleep 1.5s
+
+# Select type (feat)
+Enter
+Sleep 1.5s
+
+# Enter description
+Type "dark-mode-toggle"
+Enter
+Sleep 3s
 
 # Step 2: Make changes and commit
 Type "clear"
 Enter
-Sleep 500ms
+Sleep 1s
 Type "# Step 2: Make changes and commit"
 Enter
-Sleep 500ms
+Sleep 1s
 Type "devflow commit"
 Enter
-Sleep 2s
+Sleep 3s
 
 # Stage files
 Space
 Enter
-Sleep 1s
+Sleep 1.5s
 
-# Select type
+# Select type (feat)
 Down
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Select scope
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Enter message
 Type "implement dark mode toggle"
 Enter
-Sleep 2s
+Sleep 3s
 
 # Step 3: Create PR
 Type "clear"
 Enter
-Sleep 500ms
+Sleep 1s
 Type "# Step 3: Create a pull request"
 Enter
-Sleep 500ms
+Sleep 1s
 Type "devflow pr"
 Enter
-Sleep 2s
+Sleep 3s
 
 # Confirm title
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Enter summary
 Type "Adds dark mode toggle to user settings"
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Select test plan items
 Space
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Confirm PR creation
 Enter
-Sleep 2s
+Sleep 3s
 
 # Show result
-Sleep 3s
+Sleep 4s

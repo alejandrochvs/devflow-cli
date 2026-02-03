@@ -8,30 +8,30 @@ Set Width 1000
 Set Height 600
 Set Theme "Catppuccin Mocha"
 Set Padding 20
-Set TypingSpeed 40ms
+Set TypingSpeed 75ms
 
-Sleep 1s
+Sleep 1.5s
 
 # Show the command
 Type "devflow test-plan"
 Enter
-Sleep 2s
+Sleep 3s
 
 # View current test plan
-Sleep 1s
+Sleep 1.5s
 
 # Add a test item
 Down
 Enter
-Sleep 1s
+Sleep 1.5s
 
 Type "Verify error handling for invalid input"
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Save changes
 Enter
-Sleep 2s
+Sleep 3s
 
 # Show result
-Sleep 3s
+Sleep 4s
