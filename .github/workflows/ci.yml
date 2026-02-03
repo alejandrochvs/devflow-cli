@@ -70,6 +70,10 @@ jobs:
 
       - name: Install VHS
         run: |
+          # Install ffmpeg (required dependency for VHS)
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
           # Install VHS from GitHub releases (deb package for Ubuntu)
           VHS_VERSION="0.10.0"
           curl -fsSL "https://github.com/charmbracelet/vhs/releases/download/v${VHS_VERSION}/vhs_${VHS_VERSION}_amd64.deb" -o vhs.deb
