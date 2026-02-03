@@ -8,27 +8,27 @@ Set Width 1000
 Set Height 600
 Set Theme "Catppuccin Mocha"
 Set Padding 20
-Set TypingSpeed 40ms
+Set TypingSpeed 75ms
 
-Sleep 1s
+Sleep 1.5s
 
 # Show the command
 Type "devflow release"
 Enter
-Sleep 2s
+Sleep 3s
 
 # Select version bump type
 Down
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Confirm release notes
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Confirm tag creation
 Enter
-Sleep 2s
+Sleep 3s
 
 # Show result
-Sleep 3s
+Sleep 4s

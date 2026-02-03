@@ -8,57 +8,57 @@ Set Width 1000
 Set Height 700
 Set Theme "Catppuccin Mocha"
 Set Padding 20
-Set TypingSpeed 35ms
+Set TypingSpeed 75ms
 
-Sleep 1s
+Sleep 1.5s
 
 # Step 1: List PRs to review
 Type "# Step 1: Find PRs to review"
 Enter
-Sleep 500ms
+Sleep 1s
 Type "devflow review"
 Enter
-Sleep 2s
+Sleep 3s
 
 # Select a PR
 Down
 Enter
-Sleep 1.5s
+Sleep 2s
 
 # Step 2: View comments
 Type "clear"
 Enter
-Sleep 500ms
+Sleep 1s
 Type "# Step 2: Check review comments"
 Enter
-Sleep 500ms
+Sleep 1s
 Type "devflow comments"
 Enter
-Sleep 2s
+Sleep 3s
 
 # Scroll through comments
 Down
 Down
-Sleep 1.5s
+Sleep 2s
 
 # Step 3: Merge the PR
 Type "clear"
 Enter
-Sleep 500ms
+Sleep 1s
 Type "# Step 3: Merge when ready"
 Enter
-Sleep 500ms
+Sleep 1s
 Type "devflow merge"
 Enter
-Sleep 2s
+Sleep 3s
 
 # Select merge strategy
 Enter
-Sleep 1s
+Sleep 1.5s
 
 # Confirm merge
 Enter
-Sleep 2s
+Sleep 3s
 
 # Show result
-Sleep 3s
+Sleep 4s

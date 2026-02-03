@@ -8,25 +8,25 @@ Set Width 1000
 Set Height 600
 Set Theme "Catppuccin Mocha"
 Set Padding 20
-Set TypingSpeed 40ms
+Set TypingSpeed 75ms
 
-Sleep 1s
+Sleep 1.5s
 
 # Show the command
 Type "devflow stats"
 Enter
-Sleep 2s
+Sleep 3s
 
 # View commit types breakdown
-Sleep 2s
+Sleep 3s
 
 # Scroll to see more stats
 Down
 Down
-Sleep 1.5s
-
-# Show contributors
 Sleep 2s
 
-# Show result
+# Show contributors
 Sleep 3s
+
+# Show result
+Sleep 4s
