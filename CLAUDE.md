@@ -4,9 +4,18 @@
 
 This is devflow-cli, an interactive CLI for Git workflow automation. When working on this project or projects that use devflow, follow these guidelines.
 
+## Critical Rules
+
+1. **NEVER push directly to main** unless the user explicitly requests it
+   - All changes MUST go through pull requests
+   - Create a branch → make changes → create PR
+   - This applies even for "small" or "quick" fixes
+
+2. **Always use devflow commands** - never use raw git/gh equivalents
+
 ## Using DevFlow Commands
 
-**Always prefer devflow commands over raw git for:**
+**Always use devflow commands instead of raw git/gh:**
 - Project issues: `devflow issues` to list/work on issues
 - Create issues: `devflow issue` instead of `gh issue create`
 - Branches: `devflow branch` instead of `git checkout -b`
