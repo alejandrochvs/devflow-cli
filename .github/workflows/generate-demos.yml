@@ -68,17 +68,28 @@ jobs:
           mkdir -p .devflow
           echo '{"preset":"simple"}' > .devflow/config.json
 
-      - name: Generate GIFs
+      - name: Generate GIFs (parallel)
         run: |
           mkdir -p docs/public/gifs
           cd /tmp/demo-repo
 
-          # Generate each category of demos
-          for tape in $GITHUB_WORKSPACE/demos/**/*.tape; do
-            name=$(basename "$tape" .tape)
-            echo "Generating: $name.gif"
-            vhs "$tape" -o "$GITHUB_WORKSPACE/docs/public/gifs/$name.gif" || true
-          done
+          # Create a script to generate a single GIF
+          cat > /tmp/generate-gif.sh << 'SCRIPT'
+          #!/bin/bash
+          tape="$1"
+          workspace="$2"
+          name=$(basename "$tape" .tape)
+          echo "Generating: $name.gif"
+          vhs "$tape" -o "$workspace/docs/public/gifs/$name.gif" 2>/dev/null || echo "Failed: $name"
+          SCRIPT
+          chmod +x /tmp/generate-gif.sh
+
+          # Find all tape files and generate GIFs in parallel (unlimited - I/O bound)
+          find $GITHUB_WORKSPACE/demos -name "*.tape" -type f | \
+            xargs -P 0 -I {} /tmp/generate-gif.sh {} "$GITHUB_WORKSPACE"
+
+          echo "Done generating GIFs"
+          ls -la $GITHUB_WORKSPACE/docs/public/gifs/
 
       - name: Commit generated GIFs
         run: |
@@ -88,6 +99,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "chore(docs): update demo GIFs [skip ci]"
+            # Use project commit format and skip hooks (CI automated commit)
+            git commit --no-verify -m "chore[UNTRACKED](docs): update demo GIFs [skip ci]"
             git push
           fi
