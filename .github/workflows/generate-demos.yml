@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   generate-gifs:
@@ -91,15 +92,32 @@ jobs:
           echo "Done generating GIFs"
           ls -la $GITHUB_WORKSPACE/docs/public/gifs/
 
-      - name: Commit generated GIFs
+      - name: Create PR with generated GIFs
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/public/gifs/
+
           if git diff --staged --quiet; then
             echo "No changes to commit"
-          else
-            # Use project commit format and skip hooks (CI automated commit)
-            git commit --no-verify -m "chore[UNTRACKED](docs): update demo GIFs [skip ci]"
-            git push
+            exit 0
           fi
+
+          # Create a branch for the GIFs
+          BRANCH_NAME="chore/UNTRACKED_update-demo-gifs-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH_NAME"
+
+          # Commit the changes
+          git commit --no-verify -m "chore[UNTRACKED](docs): update demo GIFs"
+
+          # Push the branch
+          git push origin "$BRANCH_NAME"
+
+          # Create a PR
+          gh pr create \
+            --title "Update demo GIFs" \
+            --body "Automated PR to update demo GIF files generated from VHS tape recordings." \
+            --base main \
+            --head "$BRANCH_NAME"
