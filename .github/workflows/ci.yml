@@ -70,12 +70,11 @@ jobs:
 
       - name: Install VHS
         run: |
-          # Install VHS from GitHub releases
+          # Install VHS from GitHub releases (deb package for Ubuntu)
           VHS_VERSION="0.10.0"
-          curl -fsSL "https://github.com/charmbracelet/vhs/releases/download/v${VHS_VERSION}/vhs_${VHS_VERSION}_linux_amd64.tar.gz" -o vhs.tar.gz
-          tar -xzf vhs.tar.gz
-          sudo mv vhs /usr/local/bin/
-          rm -f vhs.tar.gz
+          curl -fsSL "https://github.com/charmbracelet/vhs/releases/download/v${VHS_VERSION}/vhs_${VHS_VERSION}_amd64.deb" -o vhs.deb
+          sudo dpkg -i vhs.deb
+          rm -f vhs.deb
           vhs --version
 
       - name: Validate tape files
