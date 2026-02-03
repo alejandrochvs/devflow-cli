@@ -71,7 +71,7 @@ jobs:
       - name: Install VHS
         run: |
           # Install VHS from GitHub releases
-          VHS_VERSION="0.8.0"
+          VHS_VERSION="0.10.0"
           curl -fsSL "https://github.com/charmbracelet/vhs/releases/download/v${VHS_VERSION}/vhs_${VHS_VERSION}_linux_amd64.tar.gz" -o vhs.tar.gz
           tar -xzf vhs.tar.gz
           sudo mv vhs /usr/local/bin/
