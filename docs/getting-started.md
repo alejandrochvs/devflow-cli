@@ -40,6 +40,22 @@ The wizard walks you through:
 | **Simple** | Personal projects or small teams (no ticket numbers required) |
 | **Custom** | Full control over all configuration options |
 
+## Visual Walkthrough
+
+See devflow in action with these demos of the core workflow:
+
+### Creating a Branch
+
+<img src="/gifs/branch.gif" alt="devflow branch demo" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
+
+### Making a Commit
+
+<img src="/gifs/commit.gif" alt="devflow commit demo" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
+
+### Creating a PR
+
+<img src="/gifs/pr.gif" alt="devflow pr demo" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
+
 ## Quick Start
 
 Add scripts to your `package.json`:

@@ -4,6 +4,8 @@ Interactive branch creation with consistent naming.
 
 **Alias:** `devflow b`
 
+<img src="/gifs/branch.gif" alt="devflow branch demo" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin: 16px 0;" />
+
 ## Flow
 
 **Without GitHub Issues integration:**

@@ -1,0 +1,79 @@
+name: Generate Demo GIFs
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+  # Run on release
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  generate-gifs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm link
+
+      - name: Install VHS and dependencies
+        run: |
+          # Install VHS
+          curl -fsSL https://apt.fury.io/charm/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://apt.fury.io/charm/ * *" | sudo tee /etc/apt/sources.list.d/charm.list
+          sudo apt update
+          sudo apt install -y vhs ffmpeg
+
+      - name: Setup Git for demos
+        run: |
+          git config --global user.email "demo@devflow.test"
+          git config --global user.name "Demo User"
+          git config --global init.defaultBranch main
+
+      - name: Create demo environment
+        run: |
+          # Create a temp directory for demo recordings
+          mkdir -p /tmp/demo-repo
+          cd /tmp/demo-repo
+          git init
+          echo "# Demo Project" > README.md
+          mkdir -p src
+          echo "console.log('hello');" > src/index.js
+          git add .
+          git commit -m "Initial commit"
+          # Create .devflow config
+          mkdir -p .devflow
+          echo '{"preset":"simple"}' > .devflow/config.json
+
+      - name: Generate GIFs
+        run: |
+          mkdir -p docs/public/gifs
+          cd /tmp/demo-repo
+
+          # Generate each category of demos
+          for tape in $GITHUB_WORKSPACE/demos/**/*.tape; do
+            name=$(basename "$tape" .tape)
+            echo "Generating: $name.gif"
+            vhs "$tape" -o "$GITHUB_WORKSPACE/docs/public/gifs/$name.gif" || true
+          done
+
+      - name: Commit generated GIFs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/public/gifs/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(docs): update demo GIFs [skip ci]"
+            git push
+          fi

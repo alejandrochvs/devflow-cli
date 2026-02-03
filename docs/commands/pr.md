@@ -4,6 +4,8 @@ Create or update a pull request with an auto-filled template.
 
 **Alias:** `devflow p`
 
+<img src="/gifs/pr.gif" alt="devflow pr demo" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin: 16px 0;" />
+
 ## Flow
 
 1. Checks if a PR already exists for the current branch (offers to update)

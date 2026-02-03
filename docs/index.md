@@ -42,3 +42,9 @@ features:
   <a href="https://www.npmjs.com/package/@alejandrochaves/devflow-cli"><img src="https://img.shields.io/npm/v/@alejandrochaves/devflow-cli" alt="npm version"></a>
   <a href="https://github.com/alejandrochvs/devflow-cli"><img src="https://img.shields.io/github/stars/alejandrochvs/devflow-cli" alt="GitHub stars"></a>
 </div>
+
+<div style="margin-top: 48px; text-align: center;">
+  <h2 style="font-size: 1.5rem; margin-bottom: 16px;">See it in action</h2>
+  <p style="color: var(--vp-c-text-2); margin-bottom: 24px;">A complete workflow: create branch → commit → open PR</p>
+  <img src="/gifs/full-feature.gif" alt="devflow complete workflow demo" style="max-width: 800px; width: 100%; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.2);" />
+</div>

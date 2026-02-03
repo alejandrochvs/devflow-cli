@@ -4,6 +4,8 @@ Automated release flow: version bump, changelog update, git tag, push, and GitHu
 
 **Alias:** `devflow rel`
 
+<img src="/gifs/release.gif" alt="devflow release demo" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin: 16px 0;" />
+
 ## Flow
 
 1. Detects current version from `package.json`

@@ -4,6 +4,8 @@ Interactive conventional commit with file staging, scope selection, and ticket i
 
 **Alias:** `devflow c`
 
+<img src="/gifs/commit.gif" alt="devflow commit demo" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin: 16px 0;" />
+
 ## Branch Protection
 
 If you're on `main`, `master`, `develop`, or `production`, devflow warns you and asks for confirmation before proceeding.
