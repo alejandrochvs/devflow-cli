@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseBranch, getScopesFromCommits } from "../src/git.js";
+import { parseBranch, getScopesFromCommits, isProtectedBranch } from "../src/git.js";
 
 describe("parseBranch", () => {
   it("parses standard branch format", () => {
@@ -125,5 +125,40 @@ describe("getScopesFromCommits", () => {
   it("handles empty commit list", () => {
     const scopes = getScopesFromCommits([]);
     expect(scopes).toEqual([]);
+  });
+});
+
+describe("isProtectedBranch", () => {
+  it("returns true for main branch", () => {
+    expect(isProtectedBranch("main")).toBe(true);
+  });
+
+  it("returns true for master branch", () => {
+    expect(isProtectedBranch("master")).toBe(true);
+  });
+
+  it("returns true for develop branch", () => {
+    expect(isProtectedBranch("develop")).toBe(true);
+  });
+
+  it("returns true for production branch", () => {
+    expect(isProtectedBranch("production")).toBe(true);
+  });
+
+  it("returns false for feature branch", () => {
+    expect(isProtectedBranch("feat/123_add-feature")).toBe(false);
+  });
+
+  it("returns false for fix branch", () => {
+    expect(isProtectedBranch("fix/456_bug-fix")).toBe(false);
+  });
+
+  it("returns false for arbitrary branch name", () => {
+    expect(isProtectedBranch("my-custom-branch")).toBe(false);
+  });
+
+  it("returns false for branch containing protected name as substring", () => {
+    expect(isProtectedBranch("feat/main-feature")).toBe(false);
+    expect(isProtectedBranch("main-backup")).toBe(false);
   });
 });

@@ -1,0 +1,12 @@
+# Demo GIFs
+
+This directory contains demo GIFs generated from VHS tape files.
+
+GIFs are generated automatically by CI on release, or manually with:
+
+```bash
+npm run demo:generate
+cp demos/**/*.gif docs/public/gifs/
+```
+
+See `/demos/` for the VHS tape source files.

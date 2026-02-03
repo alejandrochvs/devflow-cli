@@ -1,0 +1,93 @@
+name: Generate Demo GIFs
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+  # Run on release
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  generate-gifs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm link
+
+      - name: Install VHS and dependencies
+        run: |
+          # Install ffmpeg and ttyd
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+          # Install ttyd (required by VHS for terminal recording)
+          TTYD_VERSION="1.7.7"
+          curl -fsSL "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}/ttyd.x86_64" -o ttyd
+          chmod +x ttyd
+          sudo mv ttyd /usr/local/bin/
+
+          # Install VHS from GitHub releases (deb package for Ubuntu)
+          VHS_VERSION="0.10.0"
+          curl -fsSL "https://github.com/charmbracelet/vhs/releases/download/v${VHS_VERSION}/vhs_${VHS_VERSION}_amd64.deb" -o vhs.deb
+          sudo dpkg -i vhs.deb
+          rm -f vhs.deb
+
+          # Verify installations
+          vhs --version
+          ttyd --version
+
+      - name: Setup Git for demos
+        run: |
+          git config --global user.email "demo@devflow.test"
+          git config --global user.name "Demo User"
+          git config --global init.defaultBranch main
+
+      - name: Create demo environment
+        run: |
+          # Create a temp directory for demo recordings
+          mkdir -p /tmp/demo-repo
+          cd /tmp/demo-repo
+          git init
+          echo "# Demo Project" > README.md
+          mkdir -p src
+          echo "console.log('hello');" > src/index.js
+          git add .
+          git commit -m "Initial commit"
+          # Create .devflow config
+          mkdir -p .devflow
+          echo '{"preset":"simple"}' > .devflow/config.json
+
+      - name: Generate GIFs
+        run: |
+          mkdir -p docs/public/gifs
+          cd /tmp/demo-repo
+
+          # Generate each category of demos
+          for tape in $GITHUB_WORKSPACE/demos/**/*.tape; do
+            name=$(basename "$tape" .tape)
+            echo "Generating: $name.gif"
+            vhs "$tape" -o "$GITHUB_WORKSPACE/docs/public/gifs/$name.gif" || true
+          done
+
+      - name: Commit generated GIFs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/public/gifs/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(docs): update demo GIFs [skip ci]"
+            git push
+          fi

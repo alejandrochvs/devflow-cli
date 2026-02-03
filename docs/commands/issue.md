@@ -4,6 +4,8 @@ Create GitHub issues using configurable templates with an interactive flow.
 
 **Alias:** `devflow i`
 
+<img src="/gifs/issue.gif" alt="devflow issue demo" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin: 16px 0;" />
+
 ## Issue Types by Preset
 
 Issue types are configurable and depend on your selected preset:
