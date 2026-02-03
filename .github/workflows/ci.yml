@@ -3,9 +3,12 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 jobs:
-  ci:
+  # Type checking and unit tests with coverage
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,5 +23,59 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: Test
-        run: npm test
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage/lcov.info
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # Integration tests with isolated git repos
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Setup Git for tests
+        run: |
+          git config --global user.email "test@devflow.test"
+          git config --global user.name "Test User"
+
+      - name: Integration tests
+        run: npm run test:integration
+
+  # Validate demo tape files and check coverage
+  validate-demos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install VHS
+        run: |
+          curl -fsSL https://apt.fury.io/charm/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://apt.fury.io/charm/ * *" | sudo tee /etc/apt/sources.list.d/charm.list
+          sudo apt update && sudo apt install -y vhs
+
+      - name: Validate tape files
+        run: npm run demo:validate
+
+      - name: Check demo coverage
+        run: npm run demo:coverage
