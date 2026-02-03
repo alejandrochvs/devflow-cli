@@ -1,6 +1,6 @@
 {
   "name": "@alejandrochaves/devflow-cli",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Interactive CLI for branch creation, conventional commits, and PR management",
   "type": "module",
   "bin": {

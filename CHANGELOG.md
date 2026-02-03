@@ -1,7 +1,29 @@
 # Changelog
 
+## [1.6.0] - 2026-02-03
 
+### Features
 
+- Add comprehensive testing infrastructure (#14)
+  - Unit test coverage with Vitest and @vitest/coverage-v8
+  - Integration testing with isolated git fixtures
+  - Demo tape files for all 25 commands
+  - CI validation for tape files and demo coverage
+
+### Bug Fixes
+
+- Add placeholder GIFs for docs build
+
+### Chores
+
+- Add pre-push hook to block direct main pushes (#15)
+- Update AI instructions to require PR workflow
+
+## [1.5.0] - 2026-02-03
+
+### Features
+
+- Improve GitHub Projects setup and add test plan from acceptance criteria (#12)
 
 
 
