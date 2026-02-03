@@ -16,19 +16,24 @@
 
 ## Rules for AI Agents
 
-1. **Use devflow instead of git for:**
+1. **NEVER push directly to main** unless the user explicitly requests it
+   - All changes MUST go through pull requests
+   - Create a branch with `devflow branch`, make changes, then `devflow pr`
+   - This rule applies even for "small" or "quick" fixes
+
+2. **Use devflow instead of git/gh for:**
    - Branches: `devflow branch` not `git checkout -b`
    - Commits: `devflow commit` not `git commit`
    - PRs: `devflow pr` not `gh pr create`
    - Issues: `devflow issue` not `gh issue create`
 
-2. **Commit format:** `{type}[{ticket}]{breaking}({scope}): {message}`
+3. **Commit format:** `{type}[{ticket}]{breaking}({scope}): {message}`
    - Example: `feat[123](auth): add OAuth2 login`
 
-3. **Branch format:** `{type}/{ticket}_{description}`
+4. **Branch format:** `{type}/{ticket}_{description}`
    - Example: `feat/123_add-login`
 
-4. **Use `--dry-run` to preview** any command without executing
+5. **Use `--dry-run` to preview** any command without executing
 
 ## Issue-First Workflow
 
