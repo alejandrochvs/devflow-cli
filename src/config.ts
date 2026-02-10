@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { createRequire } from "module";
 import { yellow } from "./colors.js";
@@ -70,7 +70,14 @@ export interface PrTemplate {
 }
 
 const DEFAULT_PR_TEMPLATE: PrTemplate = {
-  sections: ["summary", "ticket", "type", "screenshots", "testPlan", "checklist"],
+  sections: [
+    "summary",
+    "ticket",
+    "type",
+    "screenshots",
+    "testPlan",
+    "checklist",
+  ],
   screenshotsTable: true,
 };
 
@@ -84,11 +91,36 @@ export const SCRUM_PRESET = {
       labelColor: "feature",
       branchType: "feat",
       fields: [
-        { name: "asA", prompt: "As a:", type: "input" as const, required: true },
-        { name: "iWant", prompt: "I want to:", type: "input" as const, required: true },
-        { name: "soThat", prompt: "So that:", type: "input" as const, required: true },
-        { name: "criteria", prompt: "Acceptance criteria:", type: "list" as const, required: true },
-        { name: "notes", prompt: "Additional notes (optional):", type: "input" as const, required: false },
+        {
+          name: "asA",
+          prompt: "As a:",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "iWant",
+          prompt: "I want to:",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "soThat",
+          prompt: "So that:",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "criteria",
+          prompt: "Acceptance criteria:",
+          type: "list" as const,
+          required: true,
+        },
+        {
+          name: "notes",
+          prompt: "Additional notes (optional):",
+          type: "input" as const,
+          required: false,
+        },
       ],
       template: `## User Story
 
@@ -107,11 +139,36 @@ export const SCRUM_PRESET = {
       labelColor: "bug",
       branchType: "fix",
       fields: [
-        { name: "description", prompt: "What happened?", type: "input" as const, required: true },
-        { name: "expected", prompt: "What was expected?", type: "input" as const, required: true },
-        { name: "steps", prompt: "Steps to reproduce:", type: "list" as const, required: true },
-        { name: "environment", prompt: "Environment (browser, OS, version - optional):", type: "input" as const, required: false },
-        { name: "logs", prompt: "Error logs or screenshots URL (optional):", type: "input" as const, required: false },
+        {
+          name: "description",
+          prompt: "What happened?",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "expected",
+          prompt: "What was expected?",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "steps",
+          prompt: "Steps to reproduce:",
+          type: "list" as const,
+          required: true,
+        },
+        {
+          name: "environment",
+          prompt: "Environment (browser, OS, version - optional):",
+          type: "input" as const,
+          required: false,
+        },
+        {
+          name: "logs",
+          prompt: "Error logs or screenshots URL (optional):",
+          type: "input" as const,
+          required: false,
+        },
       ],
       template: `## Bug Report
 
@@ -132,9 +189,24 @@ export const SCRUM_PRESET = {
       labelColor: "task",
       branchType: "chore",
       fields: [
-        { name: "what", prompt: "What needs to be done?", type: "input" as const, required: true },
-        { name: "why", prompt: "Why is this needed? (optional):", type: "input" as const, required: false },
-        { name: "criteria", prompt: "Done criteria:", type: "list" as const, required: true },
+        {
+          name: "what",
+          prompt: "What needs to be done?",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "why",
+          prompt: "Why is this needed? (optional):",
+          type: "input" as const,
+          required: false,
+        },
+        {
+          name: "criteria",
+          prompt: "Done criteria:",
+          type: "list" as const,
+          required: true,
+        },
       ],
       template: `## Task
 
@@ -152,10 +224,37 @@ export const SCRUM_PRESET = {
       labelColor: "spike",
       branchType: "chore",
       fields: [
-        { name: "question", prompt: "What question needs to be answered?", type: "input" as const, required: true },
-        { name: "timebox", prompt: "Timebox:", type: "select" as const, required: true, options: ["2 hours", "4 hours", "1 day", "2 days"] },
-        { name: "output", prompt: "Expected output:", type: "select" as const, required: true, options: ["Document with findings", "Proof of concept", "Recommendation", "Prototype"] },
-        { name: "context", prompt: "Background context (optional):", type: "input" as const, required: false },
+        {
+          name: "question",
+          prompt: "What question needs to be answered?",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "timebox",
+          prompt: "Timebox:",
+          type: "select" as const,
+          required: true,
+          options: ["2 hours", "4 hours", "1 day", "2 days"],
+        },
+        {
+          name: "output",
+          prompt: "Expected output:",
+          type: "select" as const,
+          required: true,
+          options: [
+            "Document with findings",
+            "Proof of concept",
+            "Recommendation",
+            "Prototype",
+          ],
+        },
+        {
+          name: "context",
+          prompt: "Background context (optional):",
+          type: "input" as const,
+          required: false,
+        },
       ],
       template: `## Spike
 
@@ -178,9 +277,24 @@ _To be filled after investigation_`,
       labelColor: "tech-debt",
       branchType: "refactor",
       fields: [
-        { name: "what", prompt: "What technical debt needs to be addressed?", type: "input" as const, required: true },
-        { name: "impact", prompt: "Why does it matter? (impact on codebase/team):", type: "input" as const, required: true },
-        { name: "approach", prompt: "Proposed approach (optional):", type: "input" as const, required: false },
+        {
+          name: "what",
+          prompt: "What technical debt needs to be addressed?",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "impact",
+          prompt: "Why does it matter? (impact on codebase/team):",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "approach",
+          prompt: "Proposed approach (optional):",
+          type: "input" as const,
+          required: false,
+        },
       ],
       template: `## Tech Debt
 
@@ -193,7 +307,14 @@ _To be filled after investigation_`,
     },
   ] as IssueType[],
   prTemplate: {
-    sections: ["summary", "ticket", "type", "screenshots", "testPlan", "checklist"],
+    sections: [
+      "summary",
+      "ticket",
+      "type",
+      "screenshots",
+      "testPlan",
+      "checklist",
+    ],
     screenshotsTable: true,
   } as PrTemplate,
 };
@@ -208,9 +329,24 @@ export const KANBAN_PRESET = {
       labelColor: "enhancement",
       branchType: "feat",
       fields: [
-        { name: "description", prompt: "Describe the feature:", type: "input" as const, required: true },
-        { name: "value", prompt: "Business value (optional):", type: "input" as const, required: false },
-        { name: "criteria", prompt: "Done criteria:", type: "list" as const, required: true },
+        {
+          name: "description",
+          prompt: "Describe the feature:",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "value",
+          prompt: "Business value (optional):",
+          type: "input" as const,
+          required: false,
+        },
+        {
+          name: "criteria",
+          prompt: "Done criteria:",
+          type: "list" as const,
+          required: true,
+        },
       ],
       template: `## Feature
 
@@ -227,9 +363,24 @@ export const KANBAN_PRESET = {
       labelColor: "bug",
       branchType: "fix",
       fields: [
-        { name: "description", prompt: "What's broken?", type: "input" as const, required: true },
-        { name: "expected", prompt: "Expected behavior (optional):", type: "input" as const, required: false },
-        { name: "steps", prompt: "Steps to reproduce:", type: "list" as const, required: false },
+        {
+          name: "description",
+          prompt: "What's broken?",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "expected",
+          prompt: "Expected behavior (optional):",
+          type: "input" as const,
+          required: false,
+        },
+        {
+          name: "steps",
+          prompt: "Steps to reproduce:",
+          type: "list" as const,
+          required: false,
+        },
       ],
       template: `## Bug
 
@@ -243,8 +394,18 @@ export const KANBAN_PRESET = {
       labelColor: "enhancement",
       branchType: "refactor",
       fields: [
-        { name: "description", prompt: "What should be improved?", type: "input" as const, required: true },
-        { name: "benefit", prompt: "What's the benefit?", type: "input" as const, required: false },
+        {
+          name: "description",
+          prompt: "What should be improved?",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "benefit",
+          prompt: "What's the benefit?",
+          type: "input" as const,
+          required: false,
+        },
       ],
       template: `## Improvement
 
@@ -257,8 +418,18 @@ export const KANBAN_PRESET = {
       labelColor: "task",
       branchType: "chore",
       fields: [
-        { name: "description", prompt: "What needs to be done?", type: "input" as const, required: true },
-        { name: "criteria", prompt: "Done criteria:", type: "list" as const, required: false },
+        {
+          name: "description",
+          prompt: "What needs to be done?",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "criteria",
+          prompt: "Done criteria:",
+          type: "list" as const,
+          required: false,
+        },
       ],
       template: `## Task
 
@@ -283,7 +454,12 @@ export const SIMPLE_PRESET = {
       labelColor: "enhancement",
       branchType: "feat",
       fields: [
-        { name: "description", prompt: "What needs to be built?", type: "input" as const, required: true },
+        {
+          name: "description",
+          prompt: "What needs to be built?",
+          type: "input" as const,
+          required: true,
+        },
       ],
       template: `{description}`,
     },
@@ -293,8 +469,18 @@ export const SIMPLE_PRESET = {
       labelColor: "bug",
       branchType: "fix",
       fields: [
-        { name: "description", prompt: "What's broken?", type: "input" as const, required: true },
-        { name: "expected", prompt: "Expected behavior (optional):", type: "input" as const, required: false },
+        {
+          name: "description",
+          prompt: "What's broken?",
+          type: "input" as const,
+          required: true,
+        },
+        {
+          name: "expected",
+          prompt: "Expected behavior (optional):",
+          type: "input" as const,
+          required: false,
+        },
       ],
       template: `{description}
 {expected:section:Expected Behavior}`,
@@ -305,7 +491,12 @@ export const SIMPLE_PRESET = {
       labelColor: "task",
       branchType: "chore",
       fields: [
-        { name: "description", prompt: "What needs to be done?", type: "input" as const, required: true },
+        {
+          name: "description",
+          prompt: "What needs to be done?",
+          type: "input" as const,
+          required: true,
+        },
       ],
       template: `{description}`,
     },
@@ -316,7 +507,10 @@ export const SIMPLE_PRESET = {
   } as PrTemplate,
 };
 
-export const PRESETS: Record<PresetType, { branchFormat: string; issueTypes: IssueType[]; prTemplate: PrTemplate }> = {
+export const PRESETS: Record<
+  PresetType,
+  { branchFormat: string; issueTypes: IssueType[]; prTemplate: PrTemplate }
+> = {
   scrum: SCRUM_PRESET,
   kanban: KANBAN_PRESET,
   simple: SIMPLE_PRESET,
@@ -325,7 +519,16 @@ export const PRESETS: Record<PresetType, { branchFormat: string; issueTypes: Iss
 
 const DEFAULT_CONFIG: DevflowConfig = {
   scopes: [],
-  branchTypes: ["feat", "fix", "chore", "refactor", "docs", "test", "release", "hotfix"],
+  branchTypes: [
+    "feat",
+    "fix",
+    "chore",
+    "refactor",
+    "docs",
+    "test",
+    "release",
+    "hotfix",
+  ],
   commitTypes: [
     { value: "feat", label: "feat:     A new feature" },
     { value: "fix", label: "fix:      A bug fix" },
@@ -357,14 +560,28 @@ export interface ConfigWarning {
 export function validateConfig(raw: Record<string, unknown>): ConfigWarning[] {
   const warnings: ConfigWarning[] = [];
   const validFields = [
-    "extends", "ticketBaseUrl", "scopes", "branchTypes", "commitTypes",
-    "checklist", "commitFormat", "prTemplate", "prReviewers",
-    "preset", "branchFormat", "issueTypes", "ticketProvider", "project",
+    "extends",
+    "ticketBaseUrl",
+    "scopes",
+    "branchTypes",
+    "commitTypes",
+    "checklist",
+    "commitFormat",
+    "prTemplate",
+    "prReviewers",
+    "preset",
+    "branchFormat",
+    "issueTypes",
+    "ticketProvider",
+    "project",
   ];
 
   for (const key of Object.keys(raw)) {
     if (!validFields.includes(key)) {
-      warnings.push({ field: key, message: `Unknown field "${key}" will be ignored` });
+      warnings.push({
+        field: key,
+        message: `Unknown field "${key}" will be ignored`,
+      });
     }
   }
 
@@ -372,7 +589,10 @@ export function validateConfig(raw: Record<string, unknown>): ConfigWarning[] {
     for (let i = 0; i < raw.scopes.length; i++) {
       const scope = raw.scopes[i] as Record<string, unknown>;
       if (!scope.value) {
-        warnings.push({ field: `scopes[${i}]`, message: "Scope is missing required field \"value\"" });
+        warnings.push({
+          field: `scopes[${i}]`,
+          message: 'Scope is missing required field "value"',
+        });
       }
     }
   }
@@ -380,7 +600,11 @@ export function validateConfig(raw: Record<string, unknown>): ConfigWarning[] {
   if (raw.commitFormat && typeof raw.commitFormat === "string") {
     const format = raw.commitFormat as string;
     if (!format.includes("{type}") || !format.includes("{message}")) {
-      warnings.push({ field: "commitFormat", message: "Format should include at least {type} and {message} placeholders" });
+      warnings.push({
+        field: "commitFormat",
+        message:
+          "Format should include at least {type} and {message} placeholders",
+      });
     }
   }
 
@@ -388,7 +612,10 @@ export function validateConfig(raw: Record<string, unknown>): ConfigWarning[] {
     for (let i = 0; i < raw.commitTypes.length; i++) {
       const ct = raw.commitTypes[i] as Record<string, unknown>;
       if (!ct.value || !ct.label) {
-        warnings.push({ field: `commitTypes[${i}]`, message: "Commit type is missing \"value\" or \"label\"" });
+        warnings.push({
+          field: `commitTypes[${i}]`,
+          message: 'Commit type is missing "value" or "label"',
+        });
       }
     }
   }
@@ -397,7 +624,11 @@ export function validateConfig(raw: Record<string, unknown>): ConfigWarning[] {
   if (raw.branchFormat && typeof raw.branchFormat === "string") {
     const format = raw.branchFormat as string;
     if (!format.includes("{type}") || !format.includes("{description}")) {
-      warnings.push({ field: "branchFormat", message: "Format should include at least {type} and {description} placeholders" });
+      warnings.push({
+        field: "branchFormat",
+        message:
+          "Format should include at least {type} and {description} placeholders",
+      });
     }
   }
 
@@ -405,7 +636,10 @@ export function validateConfig(raw: Record<string, unknown>): ConfigWarning[] {
   if (raw.preset && typeof raw.preset === "string") {
     const validPresets = ["scrum", "kanban", "simple", "custom"];
     if (!validPresets.includes(raw.preset)) {
-      warnings.push({ field: "preset", message: `Invalid preset "${raw.preset}". Valid: ${validPresets.join(", ")}` });
+      warnings.push({
+        field: "preset",
+        message: `Invalid preset "${raw.preset}". Valid: ${validPresets.join(", ")}`,
+      });
     }
   }
 
@@ -414,7 +648,10 @@ export function validateConfig(raw: Record<string, unknown>): ConfigWarning[] {
     for (let i = 0; i < raw.issueTypes.length; i++) {
       const it = raw.issueTypes[i] as Record<string, unknown>;
       if (!it.value || !it.label || !it.branchType) {
-        warnings.push({ field: `issueTypes[${i}]`, message: "Issue type is missing \"value\", \"label\", or \"branchType\"" });
+        warnings.push({
+          field: `issueTypes[${i}]`,
+          message: 'Issue type is missing "value", "label", or "branchType"',
+        });
       }
     }
   }
@@ -423,11 +660,17 @@ export function validateConfig(raw: Record<string, unknown>): ConfigWarning[] {
   if (raw.ticketProvider) {
     const tp = raw.ticketProvider as Record<string, unknown>;
     if (!tp.type || typeof tp.type !== "string") {
-      warnings.push({ field: "ticketProvider", message: "ticketProvider must have a \"type\" field" });
+      warnings.push({
+        field: "ticketProvider",
+        message: 'ticketProvider must have a "type" field',
+      });
     } else {
       const validTypes = ["github"];
       if (!validTypes.includes(tp.type)) {
-        warnings.push({ field: "ticketProvider.type", message: `Unknown provider type "${tp.type}". Valid: ${validTypes.join(", ")}` });
+        warnings.push({
+          field: "ticketProvider.type",
+          message: `Unknown provider type "${tp.type}". Valid: ${validTypes.join(", ")}`,
+        });
       }
     }
   }
@@ -436,28 +679,43 @@ export function validateConfig(raw: Record<string, unknown>): ConfigWarning[] {
   if (raw.project) {
     const proj = raw.project as Record<string, unknown>;
     if (proj.enabled && !proj.number) {
-      warnings.push({ field: "project", message: "project.enabled is true but project.number is missing" });
+      warnings.push({
+        field: "project",
+        message: "project.enabled is true but project.number is missing",
+      });
     }
     if (proj.enabled && !proj.statusField) {
-      warnings.push({ field: "project.statusField", message: "project.statusField is required when project is enabled" });
+      warnings.push({
+        field: "project.statusField",
+        message: "project.statusField is required when project is enabled",
+      });
     }
     if (proj.statuses) {
       const statuses = proj.statuses as Record<string, unknown>;
       const required = ["todo", "inProgress", "inReview", "done"];
       for (const key of required) {
         if (!statuses[key]) {
-          warnings.push({ field: `project.statuses.${key}`, message: `Missing status mapping for "${key}"` });
+          warnings.push({
+            field: `project.statuses.${key}`,
+            message: `Missing status mapping for "${key}"`,
+          });
         }
       }
     } else if (proj.enabled) {
-      warnings.push({ field: "project.statuses", message: "project.statuses is required when project is enabled" });
+      warnings.push({
+        field: "project.statuses",
+        message: "project.statuses is required when project is enabled",
+      });
     }
   }
 
   return warnings;
 }
 
-function resolveExtends(extendsPath: string, cwd: string): Record<string, unknown> {
+function resolveExtends(
+  extendsPath: string,
+  cwd: string,
+): Record<string, unknown> {
   try {
     // Try as npm package first
     const require = createRequire(resolve(cwd, "package.json"));
@@ -474,13 +732,48 @@ function resolveExtends(extendsPath: string, cwd: string): Record<string, unknow
   return {};
 }
 
-function mergeConfigs(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
+function mergeConfigs(
+  base: Record<string, unknown>,
+  override: Record<string, unknown>,
+): Record<string, unknown> {
   const result = { ...base };
   for (const [key, value] of Object.entries(override)) {
     if (key === "extends") continue;
     result[key] = value;
   }
   return result;
+}
+
+export function addScopeToConfig(
+  scope: Scope,
+  cwd: string = process.cwd(),
+): void {
+  const configDir = resolve(cwd, ".devflow");
+  const configPath = resolve(configDir, "config.json");
+
+  let raw: Record<string, unknown> = {};
+  if (existsSync(configPath)) {
+    try {
+      raw = JSON.parse(readFileSync(configPath, "utf-8"));
+    } catch {
+      raw = {};
+    }
+  } else {
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true });
+    }
+  }
+
+  const scopes = Array.isArray(raw.scopes) ? (raw.scopes as Scope[]) : [];
+
+  // Don't add duplicates
+  if (scopes.some((s) => s.value === scope.value)) {
+    return;
+  }
+
+  scopes.push(scope);
+  raw.scopes = scopes;
+  writeFileSync(configPath, JSON.stringify(raw, null, 2) + "\n", "utf-8");
 }
 
 export function loadConfig(cwd: string = process.cwd()): DevflowConfig {
@@ -531,16 +824,27 @@ export function loadConfig(cwd: string = process.cwd()): DevflowConfig {
       commitTypes: raw.commitTypes ?? DEFAULT_CONFIG.commitTypes,
       checklist: raw.checklist ?? DEFAULT_CONFIG.checklist,
       commitFormat: raw.commitFormat ?? DEFAULT_CONFIG.commitFormat,
-      prTemplate: raw.prTemplate ?? presetDefaults?.prTemplate ?? DEFAULT_CONFIG.prTemplate,
+      prTemplate:
+        raw.prTemplate ??
+        presetDefaults?.prTemplate ??
+        DEFAULT_CONFIG.prTemplate,
       prReviewers: raw.prReviewers,
       preset,
-      branchFormat: raw.branchFormat ?? presetDefaults?.branchFormat ?? DEFAULT_CONFIG.branchFormat,
-      issueTypes: raw.issueTypes ?? presetDefaults?.issueTypes ?? DEFAULT_CONFIG.issueTypes,
+      branchFormat:
+        raw.branchFormat ??
+        presetDefaults?.branchFormat ??
+        DEFAULT_CONFIG.branchFormat,
+      issueTypes:
+        raw.issueTypes ??
+        presetDefaults?.issueTypes ??
+        DEFAULT_CONFIG.issueTypes,
       ticketProvider: raw.ticketProvider as TicketProviderConfig | undefined,
       project: raw.project as ProjectConfig | undefined,
     };
   } catch {
-    console.error(yellow("⚠ Failed to parse .devflow/config.json, using defaults."));
+    console.error(
+      yellow("⚠ Failed to parse .devflow/config.json, using defaults."),
+    );
     return DEFAULT_CONFIG;
   }
 }

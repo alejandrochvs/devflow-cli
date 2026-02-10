@@ -1,6 +1,11 @@
 import { execSync } from "child_process";
-import { loadConfig, Scope } from "../config.js";
-import { inferTicket, inferScope, getBranch, isProtectedBranch } from "../git.js";
+import { loadConfig, addScopeToConfig, Scope } from "../config.js";
+import {
+  inferTicket,
+  inferScope,
+  getBranch,
+  isProtectedBranch,
+} from "../git.js";
 import { bold, cyan, dim, green, yellow } from "../colors.js";
 import {
   selectWithBack,
@@ -11,7 +16,12 @@ import {
   BACK_VALUE,
 } from "../prompts.js";
 
-export function inferScopeFromPaths(stagedFiles: string[], scopes: Scope[]): string | undefined {
+const ADD_NEW_SCOPE = "__ADD_NEW__";
+
+export function inferScopeFromPaths(
+  stagedFiles: string[],
+  scopes: Scope[],
+): string | undefined {
   const scopesWithPaths = scopes.filter((s) => s.paths && s.paths.length > 0);
   if (scopesWithPaths.length === 0) return undefined;
 
@@ -47,7 +57,13 @@ export function fileMatchesPattern(file: string, pattern: string): boolean {
 
 export function formatCommitMessage(
   format: string,
-  vars: { type: string; ticket: string; breaking: string; scope: string; message: string }
+  vars: {
+    type: string;
+    ticket: string;
+    breaking: string;
+    scope: string;
+    message: string;
+  },
 ): string {
   let result = format;
   result = result.replace("{type}", vars.type);
@@ -86,14 +102,20 @@ interface CommitState {
   breakingDesc: string;
 }
 
-export async function commitCommand(options: CommitOptions = {}): Promise<void> {
+export async function commitCommand(
+  options: CommitOptions = {},
+): Promise<void> {
   try {
     const config = loadConfig();
 
     // Branch protection (skip if --yes is provided)
     if (isProtectedBranch() && !options.yes) {
       const branch = getBranch();
-      console.log(yellow(`⚠ You are on ${bold(branch)}. Committing directly to protected branches is not recommended.`));
+      console.log(
+        yellow(
+          `⚠ You are on ${bold(branch)}. Committing directly to protected branches is not recommended.`,
+        ),
+      );
       const proceed = await confirmWithBack({
         message: `Continue committing to ${branch}?`,
         default: false,
@@ -131,14 +153,31 @@ export async function commitCommand(options: CommitOptions = {}): Promise<void> 
     };
 
     // Step-based flow with back navigation
-    type StepName = "stageFiles" | "type" | "scope" | "message" | "breaking" | "body" | "breakingDesc";
+    type StepName =
+      | "stageFiles"
+      | "type"
+      | "scope"
+      | "message"
+      | "breaking"
+      | "body"
+      | "breakingDesc";
     let currentStep: StepName = "stageFiles";
-    const stepOrder: StepName[] = ["stageFiles", "type", "scope", "message", "breaking", "body", "breakingDesc"];
+    const stepOrder: StepName[] = [
+      "stageFiles",
+      "type",
+      "scope",
+      "message",
+      "breaking",
+      "body",
+      "breakingDesc",
+    ];
 
     // Determine starting step based on flags
     if (options.all || options.files) {
       // Files already staged via flags, skip to type
-      const staged = execSync("git diff --cached --name-only", { encoding: "utf-8" }).trim();
+      const staged = execSync("git diff --cached --name-only", {
+        encoding: "utf-8",
+      }).trim();
       state.stagedFiles = staged ? staged.split("\n") : [];
       currentStep = "type";
     }
@@ -166,25 +205,43 @@ export async function commitCommand(options: CommitOptions = {}): Promise<void> 
         currentStep = stepOrder[currentIndex + 1];
         // Skip breakingDesc if not breaking
         if (currentStep === "breakingDesc" && !state.isBreaking) {
-          currentStep = stepOrder[stepOrder.indexOf(currentStep) + 1] as StepName || currentStep;
+          currentStep =
+            (stepOrder[stepOrder.indexOf(currentStep) + 1] as StepName) ||
+            currentStep;
         }
       }
     };
 
     while (currentStep !== undefined) {
-      const canGoBackToStageFiles = !options.all && !options.files && !options.yes;
-      const isFirstStep = (currentStep === "stageFiles") || (currentStep === "type" && !canGoBackToStageFiles);
+      const canGoBackToStageFiles =
+        !options.all && !options.files && !options.yes;
+      const isFirstStep =
+        currentStep === "stageFiles" ||
+        (currentStep === "type" && !canGoBackToStageFiles);
 
       switch (currentStep) {
         case "stageFiles": {
           // Check for staged files
-          const staged = execSync("git diff --cached --name-only", { encoding: "utf-8" }).trim();
-          const unstaged = execSync("git diff --name-only", { encoding: "utf-8" }).trim();
-          const untracked = execSync("git ls-files --others --exclude-standard", { encoding: "utf-8" }).trim();
+          const staged = execSync("git diff --cached --name-only", {
+            encoding: "utf-8",
+          }).trim();
+          const unstaged = execSync("git diff --name-only", {
+            encoding: "utf-8",
+          }).trim();
+          const untracked = execSync(
+            "git ls-files --others --exclude-standard",
+            { encoding: "utf-8" },
+          ).trim();
 
           const allChanges = [
-            ...unstaged.split("\n").filter(Boolean).map((f) => ({ file: f, label: `M  ${f}` })),
-            ...untracked.split("\n").filter(Boolean).map((f) => ({ file: f, label: `?  ${f}` })),
+            ...unstaged
+              .split("\n")
+              .filter(Boolean)
+              .map((f) => ({ file: f, label: `M  ${f}` })),
+            ...untracked
+              .split("\n")
+              .filter(Boolean)
+              .map((f) => ({ file: f, label: `?  ${f}` })),
           ];
 
           // If already have staged changes, skip to type
@@ -232,7 +289,10 @@ export async function commitCommand(options: CommitOptions = {}): Promise<void> 
             const stageChoice = await selectWithBack({
               message: "Stage files:",
               choices: [
-                { value: "all", name: `Stage all (${allChanges.length} files)` },
+                {
+                  value: "all",
+                  name: `Stage all (${allChanges.length} files)`,
+                },
                 { value: "select", name: "Select specific files" },
               ],
               default: "all",
@@ -253,7 +313,10 @@ export async function commitCommand(options: CommitOptions = {}): Promise<void> 
             } else {
               const filesToStage = await checkboxWithBack({
                 message: "Select files to stage:",
-                choices: allChanges.map((c) => ({ value: c.file, name: c.label })),
+                choices: allChanges.map((c) => ({
+                  value: c.file,
+                  name: c.label,
+                })),
                 required: true,
                 showBack: true,
               });
@@ -264,7 +327,9 @@ export async function commitCommand(options: CommitOptions = {}): Promise<void> 
               }
 
               if (filesToStage.length === 0) {
-                console.log("No files selected. Please select at least one file.");
+                console.log(
+                  "No files selected. Please select at least one file.",
+                );
                 break;
               }
 
@@ -287,7 +352,10 @@ export async function commitCommand(options: CommitOptions = {}): Promise<void> 
           }
           const result = await selectWithBack({
             message: "Select commit type:",
-            choices: config.commitTypes.map((t) => ({ value: t.value, name: t.label })),
+            choices: config.commitTypes.map((t) => ({
+              value: t.value,
+              name: t.label,
+            })),
             showBack: canGoBackToStageFiles,
           });
           if (result === BACK_VALUE) {
@@ -308,7 +376,10 @@ export async function commitCommand(options: CommitOptions = {}): Promise<void> 
           }
 
           if (config.scopes.length > 0) {
-            const inferredFromPaths = inferScopeFromPaths(state.stagedFiles, config.scopes);
+            const inferredFromPaths = inferScopeFromPaths(
+              state.stagedFiles,
+              config.scopes,
+            );
             const inferredFromLog = inferScope();
             const inferred = inferredFromPaths || inferredFromLog;
 
@@ -321,23 +392,71 @@ export async function commitCommand(options: CommitOptions = {}): Promise<void> 
                   (s) =>
                     !term ||
                     s.value.includes(term.toLowerCase()) ||
-                    s.description.toLowerCase().includes(term.toLowerCase())
+                    s.description.toLowerCase().includes(term.toLowerCase()),
                 );
                 if (inferred) {
                   filtered.sort((a, b) =>
-                    a.value === inferred ? -1 : b.value === inferred ? 1 : 0
+                    a.value === inferred ? -1 : b.value === inferred ? 1 : 0,
                   );
                 }
-                return filtered.map((s) => ({
+                const choices = filtered.map((s) => ({
                   value: s.value,
                   name: `${s.value} — ${s.description}`,
                 }));
+                choices.push({
+                  value: ADD_NEW_SCOPE,
+                  name: `➕ Add new scope`,
+                });
+                return choices;
               },
               showBack: true,
             });
 
             if (result === BACK_VALUE) {
               goBack();
+            } else if (result === ADD_NEW_SCOPE) {
+              // Prompt for new scope details
+              const newValue = await inputWithBack({
+                message: "Scope name (lowercase, e.g. auth, ui, api):",
+                validate: (val) => {
+                  if (!val.trim()) return "Scope name is required";
+                  if (!/^[a-z][a-z0-9-]*$/.test(val.trim()))
+                    return "Use lowercase letters, numbers, and hyphens";
+                  if (config.scopes.some((s) => s.value === val.trim()))
+                    return "Scope already exists";
+                  return true;
+                },
+                showBack: true,
+              });
+
+              if (newValue === BACK_VALUE) {
+                // Stay on scope step to re-show the list
+                break;
+              }
+
+              const newDesc = await inputWithBack({
+                message: "Scope description:",
+                validate: (val) =>
+                  val.trim().length > 0 || "Description is required",
+                showBack: true,
+              });
+
+              if (newDesc === BACK_VALUE) {
+                // Stay on scope step to re-show the list
+                break;
+              }
+
+              const newScope: Scope = {
+                value: newValue.trim(),
+                description: newDesc.trim(),
+              };
+              addScopeToConfig(newScope);
+              config.scopes.push(newScope);
+              console.log(
+                green(`✓ Scope "${newScope.value}" added to config.`),
+              );
+              state.scope = newScope.value;
+              goNext();
             } else {
               state.scope = result;
               goNext();
@@ -370,7 +489,8 @@ export async function commitCommand(options: CommitOptions = {}): Promise<void> 
           const result = await inputWithBack({
             message: "Enter commit message:",
             default: state.message || undefined,
-            validate: (val) => val.trim().length > 0 || "Commit message is required",
+            validate: (val) =>
+              val.trim().length > 0 || "Commit message is required",
             showBack: true,
           });
 
@@ -450,7 +570,11 @@ export async function commitCommand(options: CommitOptions = {}): Promise<void> 
           }
 
           if (options.yes) {
-            console.log(yellow("Warning: Breaking change without description. Use --breaking-desc to provide one."));
+            console.log(
+              yellow(
+                "Warning: Breaking change without description. Use --breaking-desc to provide one.",
+              ),
+            );
             currentStep = undefined as unknown as StepName;
             break;
           }
@@ -458,7 +582,9 @@ export async function commitCommand(options: CommitOptions = {}): Promise<void> 
           const result = await inputWithBack({
             message: "Describe the breaking change:",
             default: state.breakingDesc || undefined,
-            validate: (val) => val.trim().length > 0 || "Breaking change description is required",
+            validate: (val) =>
+              val.trim().length > 0 ||
+              "Breaking change description is required",
             showBack: true,
           });
 
@@ -497,7 +623,8 @@ export async function commitCommand(options: CommitOptions = {}): Promise<void> 
     const parts = [subject];
     if (state.body.trim()) parts.push(state.body.trim());
     const footers: string[] = [];
-    if (state.breakingDesc.trim()) footers.push(`BREAKING CHANGE: ${state.breakingDesc.trim()}`);
+    if (state.breakingDesc.trim())
+      footers.push(`BREAKING CHANGE: ${state.breakingDesc.trim()}`);
     if (ticket && ticket !== "UNTRACKED") footers.push(`Refs: ${ticket}`);
     if (footers.length > 0) parts.push(footers.join("\n"));
     const fullMessage = parts.join("\n\n");

@@ -8,11 +8,32 @@ Create a `.devflow/config.json` in your project (or run `devflow init`):
   "branchFormat": "{type}/{ticket}_{description}",
   "ticketBaseUrl": "https://github.com/org/repo/issues",
   "scopes": [
-    { "value": "auth", "description": "Authentication & login", "paths": ["src/auth/**"] },
-    { "value": "ui", "description": "UI components", "paths": ["src/components/**"] },
-    { "value": "api", "description": "API layer", "paths": ["src/api/**", "src/services/**"] }
+    {
+      "value": "auth",
+      "description": "Authentication & login",
+      "paths": ["src/auth/**"]
+    },
+    {
+      "value": "ui",
+      "description": "UI components",
+      "paths": ["src/components/**"]
+    },
+    {
+      "value": "api",
+      "description": "API layer",
+      "paths": ["src/api/**", "src/services/**"]
+    }
   ],
-  "branchTypes": ["feat", "fix", "chore", "refactor", "docs", "test", "release", "hotfix"],
+  "branchTypes": [
+    "feat",
+    "fix",
+    "chore",
+    "refactor",
+    "docs",
+    "test",
+    "release",
+    "hotfix"
+  ],
   "commitTypes": [
     { "value": "feat", "label": "feat:     A new feature" },
     { "value": "fix", "label": "fix:      A bug fix" }
@@ -24,7 +45,14 @@ Create a `.devflow/config.json` in your project (or run `devflow init`):
     "No new warnings or errors introduced"
   ],
   "prTemplate": {
-    "sections": ["summary", "ticket", "type", "screenshots", "testPlan", "checklist"],
+    "sections": [
+      "summary",
+      "ticket",
+      "type",
+      "screenshots",
+      "testPlan",
+      "checklist"
+    ],
     "screenshotsTable": true
   },
   "prReviewers": ["copilot"]
@@ -35,12 +63,12 @@ Create a `.devflow/config.json` in your project (or run `devflow init`):
 
 devflow includes three workflow presets that configure branch naming, issue templates, and PR structure:
 
-| Preset | Description | Branch Format | Ticket Required |
-|--------|-------------|---------------|-----------------|
-| `scrum` | Full Agile workflow with user stories, acceptance criteria | `{type}/{ticket}_{description}` | Yes |
-| `kanban` | Simpler flow-based workflow | `{type}/{ticket}_{description}` | Yes |
-| `simple` | Minimal configuration for small projects | `{type}/{description}` | No |
-| `custom` | Start with Scrum defaults, customize everything | Configurable | Configurable |
+| Preset   | Description                                                | Branch Format                   | Ticket Required |
+| -------- | ---------------------------------------------------------- | ------------------------------- | --------------- |
+| `scrum`  | Full Agile workflow with user stories, acceptance criteria | `{type}/{ticket}_{description}` | Yes             |
+| `kanban` | Simpler flow-based workflow                                | `{type}/{ticket}_{description}` | Yes             |
+| `simple` | Minimal configuration for small projects                   | `{type}/{description}`          | No              |
+| `custom` | Start with Scrum defaults, customize everything            | Configurable                    | Configurable    |
 
 ### Scrum Preset
 
@@ -68,33 +96,33 @@ Best for personal projects or small teams:
 
 ## Config Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `preset` | Workflow preset (`scrum`, `kanban`, `simple`, `custom`) | `scrum` |
-| `branchFormat` | Branch name format with placeholders | `{type}/{ticket}_{description}` |
-| `issueTypes` | Configurable issue types with fields and templates | Preset-dependent |
-| `ticketBaseUrl` | Base URL for linking tickets in PRs | — |
-| `scopes` | List of scopes with `value`, `description`, and optional `paths` | `[]` (free text input) |
-| `scopes[].paths` | Glob patterns to auto-suggest this scope when matching files are staged | — |
-| `branchTypes` | Allowed branch type prefixes | `["feat", "fix", "chore", ...]` |
-| `commitTypes` | Commit types shown in selection menu (`value` + `label`) | Standard conventional types |
-| `commitFormat` | Commit message format with placeholders | `{type}[{ticket}]{breaking}({scope}): {message}` |
-| `checklist` | PR checklist items | Basic code review items |
-| `prTemplate.sections` | PR body sections to include | All sections |
-| `prTemplate.screenshotsTable` | Include before/after screenshots table | `true` |
-| `prReviewers` | Default PR reviewers (GitHub usernames) | — |
-| `ticketProvider` | Ticket provider integration (see below) | — |
+| Option                        | Description                                                             | Default                                          |
+| ----------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------ |
+| `preset`                      | Workflow preset (`scrum`, `kanban`, `simple`, `custom`)                 | `scrum`                                          |
+| `branchFormat`                | Branch name format with placeholders                                    | `{type}/{ticket}_{description}`                  |
+| `issueTypes`                  | Configurable issue types with fields and templates                      | Preset-dependent                                 |
+| `ticketBaseUrl`               | Base URL for linking tickets in PRs                                     | —                                                |
+| `scopes`                      | List of scopes with `value`, `description`, and optional `paths`        | `[]` (free text input)                           |
+| `scopes[].paths`              | Glob patterns to auto-suggest this scope when matching files are staged | —                                                |
+| `branchTypes`                 | Allowed branch type prefixes                                            | `["feat", "fix", "chore", ...]`                  |
+| `commitTypes`                 | Commit types shown in selection menu (`value` + `label`)                | Standard conventional types                      |
+| `commitFormat`                | Commit message format with placeholders                                 | `{type}[{ticket}]{breaking}({scope}): {message}` |
+| `checklist`                   | PR checklist items                                                      | Basic code review items                          |
+| `prTemplate.sections`         | PR body sections to include                                             | All sections                                     |
+| `prTemplate.screenshotsTable` | Include before/after screenshots table                                  | `true`                                           |
+| `prReviewers`                 | Default PR reviewers (GitHub usernames)                                 | —                                                |
+| `ticketProvider`              | Ticket provider integration (see below)                                 | —                                                |
 
 ## Branch Format
 
 The `branchFormat` option controls how branch names are generated. Available placeholders:
 
-| Placeholder | Description | Example |
-|-------------|-------------|---------|
-| `{type}` | Branch type (feat, fix, chore, etc.) | `feat` |
-| `{ticket}` | Ticket number (or UNTRACKED) | `ENV-123` |
-| `{description}` | Kebab-cased description | `add-login` |
-| `{scope}` | Optional scope | `auth` |
+| Placeholder     | Description                          | Example     |
+| --------------- | ------------------------------------ | ----------- |
+| `{type}`        | Branch type (feat, fix, chore, etc.) | `feat`      |
+| `{ticket}`      | Ticket number (or UNTRACKED)         | `ENV-123`   |
+| `{description}` | Kebab-cased description              | `add-login` |
+| `{scope}`       | Optional scope                       | `auth`      |
 
 **Examples:**
 
@@ -125,8 +153,18 @@ Each preset defines different issue types. You can customize them with the `issu
       "labelColor": "enhancement",
       "branchType": "feat",
       "fields": [
-        { "name": "description", "prompt": "Describe the feature:", "type": "input", "required": true },
-        { "name": "criteria", "prompt": "Done criteria:", "type": "list", "required": true }
+        {
+          "name": "description",
+          "prompt": "Describe the feature:",
+          "type": "input",
+          "required": true
+        },
+        {
+          "name": "criteria",
+          "prompt": "Done criteria:",
+          "type": "list",
+          "required": true
+        }
       ],
       "template": "## Feature\n\n{description}\n\n### Done Criteria\n\n{criteria:checkbox}"
     }
@@ -136,20 +174,20 @@ Each preset defines different issue types. You can customize them with the `issu
 
 ### Field Types
 
-| Type | Description |
-|------|-------------|
-| `input` | Single line text input |
-| `multiline` | Multi-line text editor |
-| `select` | Dropdown with options |
-| `list` | Collect multiple items until blank |
+| Type        | Description                        |
+| ----------- | ---------------------------------- |
+| `input`     | Single line text input             |
+| `multiline` | Multi-line text editor             |
+| `select`    | Dropdown with options              |
+| `list`      | Collect multiple items until blank |
 
 ### Template Placeholders
 
-| Syntax | Description |
-|--------|-------------|
-| `{field}` | Simple value replacement |
-| `{field:checkbox}` | Render list as checkboxes |
-| `{field:numbered}` | Render list as numbered items |
+| Syntax                  | Description                                |
+| ----------------------- | ------------------------------------------ |
+| `{field}`               | Simple value replacement                   |
+| `{field:checkbox}`      | Render list as checkboxes                  |
+| `{field:numbered}`      | Render list as numbered items              |
 | `{field:section:Title}` | Conditional section (only if value exists) |
 
 ## Ticket Provider
@@ -181,6 +219,7 @@ When enabled, `devflow branch` offers three options:
 ```
 
 Selecting an issue:
+
 - Sets ticket to the issue number
 - Infers branch type from labels (`bug` → `fix`, `enhancement` → `feat`)
 - Pre-fills description from issue title
@@ -189,14 +228,14 @@ PRs automatically use `Closes #N` syntax for auto-close on merge.
 
 ### Label to Branch Type Mapping
 
-| Label | Branch Type |
-|-------|-------------|
-| `bug` | `fix` |
-| `enhancement`, `feature` | `feat` |
-| `documentation`, `docs` | `docs` |
-| `refactor`, `tech-debt` | `refactor` |
-| `test`, `testing` | `test` |
-| `chore`, `maintenance` | `chore` |
+| Label                    | Branch Type |
+| ------------------------ | ----------- |
+| `bug`                    | `fix`       |
+| `enhancement`, `feature` | `feat`      |
+| `documentation`, `docs`  | `docs`      |
+| `refactor`, `tech-debt`  | `refactor`  |
+| `test`, `testing`        | `test`      |
+| `chore`, `maintenance`   | `chore`     |
 
 ## Scopes
 
@@ -212,13 +251,25 @@ When `scopes` is an empty array, the commit command shows a free text input for 
 ```json
 {
   "scopes": [
-    { "value": "auth", "description": "Authentication", "paths": ["src/auth/**", "src/hooks/useAuth*"] },
-    { "value": "ui", "description": "UI components", "paths": ["src/components/**"] }
+    {
+      "value": "auth",
+      "description": "Authentication",
+      "paths": ["src/auth/**", "src/hooks/useAuth*"]
+    },
+    {
+      "value": "ui",
+      "description": "UI components",
+      "paths": ["src/components/**"]
+    }
   ]
 }
 ```
 
 If you stage `src/auth/login.ts`, the `auth` scope is auto-suggested.
+
+### Adding scopes on the fly
+
+During `devflow commit`, the scope selection list includes an **➕ Add new scope** option. The new scope is saved to `.devflow/config.json` and available for future commits.
 
 ## Shareable Configs (`extends`)
 
@@ -232,6 +283,7 @@ Share a base configuration across projects using the `extends` field:
 ```
 
 The `extends` value can be:
+
 - An npm package name (resolved from `node_modules`)
 - A relative file path (e.g., `"./config/devflow-base.json"`)
 
