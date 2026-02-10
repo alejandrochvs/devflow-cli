@@ -16,6 +16,7 @@ This is devflow-cli, an interactive CLI for Git workflow automation. When workin
 ## Using DevFlow Commands
 
 **Always use devflow commands instead of raw git/gh:**
+
 - Project issues: `devflow issues` to list/work on issues
 - Create issues: `devflow issue` instead of `gh issue create`
 - Branches: `devflow branch` instead of `git checkout -b`
@@ -24,23 +25,25 @@ This is devflow-cli, an interactive CLI for Git workflow automation. When workin
 
 ## Quick Reference
 
-| Task | Command |
-|------|---------|
-| Check status | `devflow status` |
-| List project issues | `devflow issues` |
-| Start work on issue | `devflow issues --work` |
-| Create new issue | `devflow issue` |
-| New branch | `devflow branch` |
-| Commit changes | `devflow commit` or `devflow commit -m "message"` |
-| Create/update PR | `devflow pr` |
-| Amend last commit | `devflow amend` |
-| View PR comments | `devflow comments` |
+| Task                | Command                                           |
+| ------------------- | ------------------------------------------------- |
+| Check status        | `devflow status`                                  |
+| List project issues | `devflow issues`                                  |
+| Start work on issue | `devflow issues --work`                           |
+| Create new issue    | `devflow issue`                                   |
+| New branch          | `devflow branch`                                  |
+| Commit changes      | `devflow commit` or `devflow commit -m "message"` |
+| Create/update PR    | `devflow pr`                                      |
+| Amend last commit   | `devflow amend`                                   |
+| View PR comments    | `devflow comments`                                |
 
 ## Commit Format
 
 This project uses: `{type}[{ticket}]({scope}): {message}`
 
 Example: `feat[ENV-123](auth): add OAuth2 login`
+
+> **Tip:** During interactive `devflow commit`, you can add a new scope on the fly — it will be saved to `.devflow/config.json`.
 
 ## Before Making Changes (Issue-First Workflow)
 
@@ -62,6 +65,7 @@ When creating a branch from an issue with `## Acceptance Criteria`, devflow will
 ## Dry Run
 
 Use `--dry-run` to preview any command without executing:
+
 ```bash
 devflow commit --dry-run
 devflow pr --dry-run

@@ -2,17 +2,17 @@
 
 ## Quick Reference
 
-| Task | Command |
-|------|---------|
-| Check status | `devflow status` |
-| List project issues | `devflow issues` |
-| Start work on issue | `devflow issues --work` |
-| Create new issue | `devflow issue` |
-| New branch | `devflow branch` |
-| Commit changes | `devflow commit` or `devflow commit -m "message"` |
-| Create/update PR | `devflow pr` |
-| Amend last commit | `devflow amend` |
-| View PR comments | `devflow comments` |
+| Task                | Command                                           |
+| ------------------- | ------------------------------------------------- |
+| Check status        | `devflow status`                                  |
+| List project issues | `devflow issues`                                  |
+| Start work on issue | `devflow issues --work`                           |
+| Create new issue    | `devflow issue`                                   |
+| New branch          | `devflow branch`                                  |
+| Commit changes      | `devflow commit` or `devflow commit -m "message"` |
+| Create/update PR    | `devflow pr`                                      |
+| Amend last commit   | `devflow amend`                                   |
+| View PR comments    | `devflow comments`                                |
 
 ## Rules for AI Agents
 
@@ -29,6 +29,7 @@
 
 3. **Commit format:** `{type}[{ticket}]{breaking}({scope}): {message}`
    - Example: `feat[123](auth): add OAuth2 login`
+   - During interactive commit, you can add a new scope on the fly — it will be saved to config
 
 4. **Branch format:** `{type}/{ticket}_{description}`
    - Example: `feat/123_add-login`
@@ -69,6 +70,7 @@ DevFlow will automatically offer to use these as test plan steps. The test plan 
 ### GitHub Projects Integration
 
 DevFlow can automatically move issues on your project board:
+
 - **In Progress**: When you create a branch for an issue
 - **In Review**: When you open a PR
 

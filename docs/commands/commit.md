@@ -14,7 +14,7 @@ If you're on `main`, `master`, `develop`, or `production`, devflow warns you and
 
 1. If no files are staged, select files to stage (checkbox selection)
 2. Select commit type
-3. Select or enter scope (searchable list if configured, free text otherwise)
+3. Select or enter scope (searchable list if configured, free text otherwise). You can also add a new scope inline — it will be saved to your config.
 4. Enter commit subject
 5. Optional: enter commit body (longer description)
 6. Confirm if breaking change (adds `BREAKING CHANGE:` footer)
@@ -42,6 +42,10 @@ The `!` after the ticket indicates a breaking change.
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
+| Option      | Description                          |
+| ----------- | ------------------------------------ |
 | `--dry-run` | Preview the commit without executing |
+
+## Adding Scopes
+
+When scopes are configured, the scope selection step includes an **➕ Add new scope** option at the bottom of the list. Selecting it lets you define a scope name and description, which is immediately saved to `.devflow/config.json` and used for the current commit.

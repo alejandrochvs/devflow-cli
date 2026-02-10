@@ -1,5 +1,15 @@
-import { describe, it, expect } from "vitest";
-import { validateConfig, SCRUM_PRESET, KANBAN_PRESET, SIMPLE_PRESET, PRESETS } from "../src/config.js";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import {
+  validateConfig,
+  addScopeToConfig,
+  SCRUM_PRESET,
+  KANBAN_PRESET,
+  SIMPLE_PRESET,
+  PRESETS,
+} from "../src/config.js";
+import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from "fs";
+import { resolve } from "path";
+import { tmpdir } from "os";
 
 describe("validateConfig", () => {
   it("returns no warnings for valid config", () => {
@@ -106,7 +116,14 @@ describe("validateConfig", () => {
   it("accepts valid issueTypes", () => {
     const warnings = validateConfig({
       issueTypes: [
-        { value: "feature", label: "Feature", branchType: "feat", labelColor: "enhancement", fields: [], template: "{description}" },
+        {
+          value: "feature",
+          label: "Feature",
+          branchType: "feat",
+          labelColor: "enhancement",
+          fields: [],
+          template: "{description}",
+        },
       ],
     });
     expect(warnings).toEqual([]);
@@ -139,7 +156,16 @@ describe("validateConfig", () => {
   // Tests for project config
   it("warns on project enabled without number", () => {
     const warnings = validateConfig({
-      project: { enabled: true, statusField: "Status", statuses: { todo: "Todo", inProgress: "In Progress", inReview: "In Review", done: "Done" } },
+      project: {
+        enabled: true,
+        statusField: "Status",
+        statuses: {
+          todo: "Todo",
+          inProgress: "In Progress",
+          inReview: "In Review",
+          done: "Done",
+        },
+      },
     });
     expect(warnings).toHaveLength(1);
     expect(warnings[0].message).toContain("project.number");
@@ -147,7 +173,16 @@ describe("validateConfig", () => {
 
   it("warns on project enabled without statusField", () => {
     const warnings = validateConfig({
-      project: { enabled: true, number: 1, statuses: { todo: "Todo", inProgress: "In Progress", inReview: "In Review", done: "Done" } },
+      project: {
+        enabled: true,
+        number: 1,
+        statuses: {
+          todo: "Todo",
+          inProgress: "In Progress",
+          inReview: "In Review",
+          done: "Done",
+        },
+      },
     });
     expect(warnings).toHaveLength(1);
     expect(warnings[0].message).toContain("statusField");
@@ -163,7 +198,12 @@ describe("validateConfig", () => {
 
   it("warns on project statuses missing required keys", () => {
     const warnings = validateConfig({
-      project: { enabled: true, number: 1, statusField: "Status", statuses: { todo: "Todo" } },
+      project: {
+        enabled: true,
+        number: 1,
+        statusField: "Status",
+        statuses: { todo: "Todo" },
+      },
     });
     expect(warnings).toHaveLength(3); // missing inProgress, inReview, done
     expect(warnings.some((w) => w.field.includes("inProgress"))).toBe(true);
@@ -177,7 +217,12 @@ describe("validateConfig", () => {
         enabled: true,
         number: 1,
         statusField: "Status",
-        statuses: { todo: "Todo", inProgress: "In Progress", inReview: "In Review", done: "Done" },
+        statuses: {
+          todo: "Todo",
+          inProgress: "In Progress",
+          inReview: "In Review",
+          done: "Done",
+        },
       },
     });
     expect(warnings).toEqual([]);
@@ -240,5 +285,104 @@ describe("presets", () => {
     expect(PRESETS.kanban).toBe(KANBAN_PRESET);
     expect(PRESETS.simple).toBe(SIMPLE_PRESET);
     expect(PRESETS.custom).toBeDefined();
+  });
+});
+
+describe("addScopeToConfig", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = resolve(
+      tmpdir(),
+      `devflow-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    );
+    mkdirSync(tmpDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("adds a scope to an existing config file", () => {
+    const devflowDir = resolve(tmpDir, ".devflow");
+    mkdirSync(devflowDir, { recursive: true });
+    writeFileSync(
+      resolve(devflowDir, "config.json"),
+      JSON.stringify(
+        {
+          preset: "scrum",
+          scopes: [{ value: "auth", description: "Authentication" }],
+        },
+        null,
+        2,
+      ),
+    );
+
+    addScopeToConfig({ value: "ui", description: "UI components" }, tmpDir);
+
+    const config = JSON.parse(
+      readFileSync(resolve(devflowDir, "config.json"), "utf-8"),
+    );
+    expect(config.scopes).toHaveLength(2);
+    expect(config.scopes[1]).toEqual({
+      value: "ui",
+      description: "UI components",
+    });
+    // Preserves other config fields
+    expect(config.preset).toBe("scrum");
+  });
+
+  it("adds a scope when scopes array is empty", () => {
+    const devflowDir = resolve(tmpDir, ".devflow");
+    mkdirSync(devflowDir, { recursive: true });
+    writeFileSync(
+      resolve(devflowDir, "config.json"),
+      JSON.stringify({ scopes: [] }, null, 2),
+    );
+
+    addScopeToConfig({ value: "api", description: "API layer" }, tmpDir);
+
+    const config = JSON.parse(
+      readFileSync(resolve(devflowDir, "config.json"), "utf-8"),
+    );
+    expect(config.scopes).toHaveLength(1);
+    expect(config.scopes[0].value).toBe("api");
+  });
+
+  it("creates config file if it does not exist", () => {
+    addScopeToConfig(
+      { value: "core", description: "Core functionality" },
+      tmpDir,
+    );
+
+    const configPath = resolve(tmpDir, ".devflow", "config.json");
+    expect(existsSync(configPath)).toBe(true);
+    const config = JSON.parse(readFileSync(configPath, "utf-8"));
+    expect(config.scopes).toHaveLength(1);
+    expect(config.scopes[0].value).toBe("core");
+  });
+
+  it("does not duplicate an existing scope", () => {
+    const devflowDir = resolve(tmpDir, ".devflow");
+    mkdirSync(devflowDir, { recursive: true });
+    writeFileSync(
+      resolve(devflowDir, "config.json"),
+      JSON.stringify(
+        { scopes: [{ value: "auth", description: "Authentication" }] },
+        null,
+        2,
+      ),
+    );
+
+    addScopeToConfig(
+      { value: "auth", description: "Different description" },
+      tmpDir,
+    );
+
+    const config = JSON.parse(
+      readFileSync(resolve(devflowDir, "config.json"), "utf-8"),
+    );
+    expect(config.scopes).toHaveLength(1);
+    expect(config.scopes[0].description).toBe("Authentication"); // Unchanged
   });
 });
