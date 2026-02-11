@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.7.0] - 2026-02-11
+
+### Documentation
+
+- Add comprehensive guide for release workflows (manual and automated)
+
+### Chore
+
+- Update devflow configuration and version tracking
 
 ## [1.6.1] - 2026-02-11
 
@@ -48,10 +57,6 @@
 ### Features
 
 - Improve GitHub Projects setup and add test plan from acceptance criteria (#12)
-
-
-
-
 
 ## [1.4.0] - 2026-01-28
 
