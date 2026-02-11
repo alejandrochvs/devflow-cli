@@ -1,5 +1,29 @@
 # Changelog
 
+
+## [1.6.1] - 2026-02-11
+
+### Bug Fixes
+
+- create PR instead of pushing directly to main (#19)
+- allow CI to push generated GIFs to main (#18)
+- add placeholder GIFs for docs build
+
+### Performance
+
+- run GIF generation in parallel (#17)
+
+### Chores
+
+- improve tape timing and simplify full-feature workflow (#21)
+- update demo GIFs (#20)
+- release v1.6.0 (#16)
+- add pre-push hook to block direct main pushes (#15)
+
+### Other
+
+- Add comprehensive testing infrastructure (#14)
+
 ## [1.6.0] - 2026-02-03
 
 ### Features
