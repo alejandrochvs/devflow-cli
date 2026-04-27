@@ -1,5 +1,24 @@
 # Changelog
 
+
+## [1.8.0] - 2026-04-27
+
+### Features
+
+- generate Claude Code wrapper skill via init/update (#27)
+
+### Bug Fixes
+
+- build before integration tests, exclude from unit test run (#29)
+
+### Chores
+
+- update changelog
+
+### Other
+
+- fix: CLI audit — security, reliability, tests, docs, and CI improvements (#28)
+
 ## [Unreleased]
 
 ### Features
