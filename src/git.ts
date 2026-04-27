@@ -135,6 +135,26 @@ export function getDefaultBase(currentBranch: string): string {
   }
 }
 
+export function getRepoDefaultBranch(): string {
+  try {
+    const ref = execSync("git symbolic-ref refs/remotes/origin/HEAD", {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+    return ref.replace(/^refs\/remotes\/origin\//, "");
+  } catch {
+    for (const candidate of ["main", "master", "trunk", "develop"]) {
+      try {
+        execSync(`git rev-parse --verify ${candidate}`, { stdio: "ignore" });
+        return candidate;
+      } catch {
+        // try next
+      }
+    }
+    return "main";
+  }
+}
+
 export function checkGhInstalled(): void {
   try {
     execSync("gh --version", { stdio: "ignore" });

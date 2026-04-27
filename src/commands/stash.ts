@@ -47,6 +47,7 @@ export interface StashOptions {
   index?: string;
   includeUntracked?: boolean;
   yes?: boolean;
+  dryRun?: boolean;
 }
 
 export async function stashCommand(options: StashOptions = {}): Promise<void> {
@@ -153,10 +154,14 @@ export async function stashCommand(options: StashOptions = {}): Promise<void> {
               }
 
               const untrackedFlag = includeUntracked ? " --include-untracked" : "";
-              execSync(`git stash push -m ${JSON.stringify(stashMessage)}${untrackedFlag}`, {
-                stdio: "inherit",
-              });
-              console.log(green(`✓ Stashed: ${stashMessage}`));
+              if (options.dryRun) {
+                console.log(dim(`[dry-run] Would stash with message: ${stashMessage}${includeUntracked ? " (incl. untracked)" : ""}`));
+              } else {
+                execSync(`git stash push -m ${JSON.stringify(stashMessage)}${untrackedFlag}`, {
+                  stdio: "inherit",
+                });
+                console.log(green(`✓ Stashed: ${stashMessage}`));
+              }
               currentStep = "done";
               break;
             }
@@ -174,11 +179,15 @@ export async function stashCommand(options: StashOptions = {}): Promise<void> {
                 stashTarget = target as number;
               }
 
-              try {
-                execSync(`git stash ${selectedAction} stash@{${stashTarget}}`, { stdio: "inherit" });
-                console.log(green(`✓ ${selectedAction === "pop" ? "Popped" : "Applied"} stash@{${stashTarget}}`));
-              } catch {
-                console.log(yellow("⚠ Stash could not be applied cleanly. Resolve conflicts manually."));
+              if (options.dryRun) {
+                console.log(dim(`[dry-run] Would ${selectedAction} stash@{${stashTarget}}`));
+              } else {
+                try {
+                  execSync(`git stash ${selectedAction} stash@{${stashTarget}}`, { stdio: "inherit" });
+                  console.log(green(`✓ ${selectedAction === "pop" ? "Popped" : "Applied"} stash@{${stashTarget}}`));
+                } catch {
+                  console.log(yellow("⚠ Stash could not be applied cleanly. Resolve conflicts manually."));
+                }
               }
               currentStep = "done";
               break;
@@ -208,8 +217,12 @@ export async function stashCommand(options: StashOptions = {}): Promise<void> {
               }
 
               if (confirmed === true) {
-                execSync(`git stash drop stash@{${stashTarget}}`, { stdio: "ignore" });
-                console.log(green(`✓ Dropped stash@{${stashTarget}}`));
+                if (options.dryRun) {
+                  console.log(dim(`[dry-run] Would drop stash@{${stashTarget}}`));
+                } else {
+                  execSync(`git stash drop stash@{${stashTarget}}`, { stdio: "ignore" });
+                  console.log(green(`✓ Dropped stash@{${stashTarget}}`));
+                }
               }
               currentStep = "done";
               break;

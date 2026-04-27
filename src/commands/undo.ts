@@ -1,6 +1,6 @@
-import { confirm } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { bold, dim, green, yellow } from "../colors.js";
+import { confirmWithBack } from "../prompts.js";
 
 export interface UndoOptions {
   dryRun?: boolean;
@@ -33,14 +33,14 @@ export async function undoCommand(options: UndoOptions = {}): Promise<void> {
       return;
     }
 
-    // Confirm (skip if --yes)
     if (!options.yes) {
-      const confirmed = await confirm({
+      const confirmed = await confirmWithBack({
         message: "Undo this commit? (changes will remain staged)",
         default: true,
+        showBack: false,
       });
 
-      if (!confirmed) {
+      if (confirmed !== true) {
         console.log("Aborted.");
         return;
       }
