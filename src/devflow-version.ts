@@ -7,6 +7,7 @@ interface DevflowVersionInfo {
   generatedAt: string;
   files: {
     aiInstructions?: string;
+    claudeSkill?: string;
   };
 }
 
@@ -35,6 +36,7 @@ export function writeVersionInfo(cliVersion: string, cwd: string = process.cwd()
     generatedAt: new Date().toISOString(),
     files: {
       aiInstructions: cliVersion,
+      claudeSkill: cliVersion,
     },
   };
   writeFileSync(versionPath, JSON.stringify(info, null, 2) + "\n");

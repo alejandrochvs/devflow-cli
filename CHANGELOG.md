@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+
+- **init / update** — Generate a Claude Code wrapper skill at `.claude/skills/devflow-usage/SKILL.md` alongside `.devflow/AI_INSTRUCTIONS.md`. The skill surfaces devflow rules in Claude's available-skills list; AI_INSTRUCTIONS.md remains the canonical agent-agnostic reference for Cursor, Copilot, and other tools. Both files stay in sync via `devflow update`.
+
+### Bug Fixes
+
+- **pr** — Gracefully handle merged and closed PRs: merged branch prompts to create a new PR; closed branch offers reopen-and-update or create-new. `--yes` auto-creates in both cases.
+
+### Documentation
+
+- Add `docs/commands/issues.md` (previously missing)
+- Add `issues` to VitePress sidebar
+- Add Escape back-navigation tip to README
+- Sync AI_INSTRUCTIONS.md Quick Reference with CLAUDE.md (add `issues`, `issues --work`)
+- Bump `.devflow/version.json` to 1.7.0
+
 ## [1.7.0] - 2026-02-11
 
 ### Documentation

@@ -77,9 +77,11 @@ function ensureLabel(label: { name: string; color: string }): void {
   }
 }
 
-function getExistingPr(): { url: string; number: number } | undefined {
+type ExistingPrState = "OPEN" | "MERGED" | "CLOSED";
+
+function getExistingPr(): { url: string; number: number; state: ExistingPrState } | undefined {
   try {
-    const result = execSync("gh pr view --json url,number", {
+    const result = execSync("gh pr view --json url,number,state", {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "ignore"],
     }).trim();
@@ -160,15 +162,52 @@ export async function prCommand(options: PrOptions = {}): Promise<void> {
     const { type, ticket, description } = parseBranch(branch);
     const existingPr = getExistingPr();
 
-    if (existingPr && !options.yes) {
-      console.log(`\n${cyan(`PR #${existingPr.number}`)} already exists: ${existingPr.url}`);
-      const shouldUpdate = await confirmWithBack({
-        message: "Update this PR?",
-        default: true,
-        showBack: false,
-      });
-      if (shouldUpdate !== true) {
-        process.exit(0);
+    type PrAction = "update" | "reopen" | "create";
+    let prAction: PrAction = existingPr?.state === "OPEN" ? "update" : "create";
+
+    if (existingPr) {
+      if (existingPr.state === "OPEN" && !options.yes) {
+        console.log(`\n${cyan(`PR #${existingPr.number}`)} already exists: ${existingPr.url}`);
+        const shouldUpdate = await confirmWithBack({
+          message: "Update this PR?",
+          default: true,
+          showBack: false,
+        });
+        if (shouldUpdate !== true) {
+          process.exit(0);
+        }
+      } else if (existingPr.state === "MERGED") {
+        if (!options.yes) {
+          console.log(`\n${cyan(`PR #${existingPr.number}`)} is already ${dim("merged")}: ${existingPr.url}`);
+          const proceed = await confirmWithBack({
+            message: "Create a new PR for this branch?",
+            default: true,
+            showBack: false,
+          });
+          if (proceed !== true) {
+            process.exit(0);
+          }
+        }
+        // prAction stays "create"
+      } else if (existingPr.state === "CLOSED") {
+        if (!options.yes) {
+          console.log(`\n${cyan(`PR #${existingPr.number}`)} is ${dim("closed")}: ${existingPr.url}`);
+          const choice = await selectWithBack({
+            message: "What would you like to do?",
+            choices: [
+              { value: "reopen", name: "Reopen and update existing PR" },
+              { value: "new", name: "Create a new PR" },
+              { value: "cancel", name: "Cancel" },
+            ],
+            default: "new",
+            showBack: false,
+          });
+          if (choice === BACK_VALUE || choice === "cancel") {
+            process.exit(0);
+          }
+          prAction = choice === "reopen" ? "reopen" : "create";
+        }
+        // under --yes: prAction stays "create"
       }
     }
 
@@ -305,8 +344,12 @@ export async function prCommand(options: PrOptions = {}): Promise<void> {
     const uniquePreviewLabels = [...new Set(previewLabels)];
 
     console.log(`\n${dim("───")} ${bold("PR Preview")} ${dim("───")}`);
-    if (existingPr) {
-      console.log(gray(`(Updating existing PR #${existingPr.number})`));
+    if (prAction === "update") {
+      console.log(gray(`(Updating existing PR #${existingPr!.number})`));
+    } else if (prAction === "reopen") {
+      console.log(gray(`(Reopening and updating PR #${existingPr!.number})`));
+    } else if (existingPr) {
+      console.log(gray(`(Creating new PR; previous PR #${existingPr.number} was ${existingPr.state.toLowerCase()})`));
     }
     console.log(`${dim("Title:")}    ${bold(title)}`);
     console.log(`${dim("Branch:")}   ${cyan(branch)} → ${cyan(base.trim())}`);
@@ -326,12 +369,18 @@ export async function prCommand(options: PrOptions = {}): Promise<void> {
 
     // Confirm (skip if --yes)
     if (!options.yes) {
+      const confirmMessage =
+        prAction === "update" ? `Update PR #${existingPr!.number}?` :
+        prAction === "reopen" ? `Reopen and update PR #${existingPr!.number}?` :
+        "Create this PR?";
+      const confirmYesLabel =
+        prAction === "update" ? "Yes, update PR" :
+        prAction === "reopen" ? "Yes, reopen and update" :
+        "Yes, create PR";
       const confirmResult = await selectWithBack({
-        message: existingPr
-          ? `Update PR #${existingPr.number}?`
-          : "Create this PR?",
+        message: confirmMessage,
         choices: [
-          { value: "yes", name: existingPr ? "Yes, update PR" : "Yes, create PR" },
+          { value: "yes", name: confirmYesLabel },
           { value: "no", name: "No, abort" },
         ],
         default: "yes",
@@ -381,12 +430,19 @@ export async function prCommand(options: PrOptions = {}): Promise<void> {
     // Draft flag (unless --ready is specified)
     const draftFlag = options.ready ? "" : " --draft";
 
-    if (existingPr) {
+    if (prAction === "reopen") {
+      execSync(`gh pr reopen ${existingPr!.number}`, { stdio: "inherit" });
       execSync(
-        `gh pr edit ${existingPr.number} --title ${JSON.stringify(title)} --body-file -${labelFlag ? ` --add-label ${labelFlag}` : ""}`,
+        `gh pr edit ${existingPr!.number} --title ${JSON.stringify(title)} --body-file -${labelFlag ? ` --add-label ${labelFlag}` : ""}`,
         { input: body, stdio: ["pipe", "inherit", "inherit"] }
       );
-      console.log(green(`✓ PR #${existingPr.number} updated: ${existingPr.url}`));
+      console.log(green(`✓ PR #${existingPr!.number} reopened and updated: ${existingPr!.url}`));
+    } else if (prAction === "update") {
+      execSync(
+        `gh pr edit ${existingPr!.number} --title ${JSON.stringify(title)} --body-file -${labelFlag ? ` --add-label ${labelFlag}` : ""}`,
+        { input: body, stdio: ["pipe", "inherit", "inherit"] }
+      );
+      console.log(green(`✓ PR #${existingPr!.number} updated: ${existingPr!.url}`));
     } else {
       execSync(
         `gh pr create${draftFlag} --title ${JSON.stringify(title)} --body-file - --base ${base.trim()} --head ${branch} --assignee @me${reviewerFlag}${labelFlag ? ` --label ${labelFlag}` : ""}`,
