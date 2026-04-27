@@ -26,3 +26,6 @@ Automated release flow: version bump, changelog update, git tag, push, and GitHu
 | Option | Description |
 |--------|-------------|
 | `--dry-run` | Preview the release without executing |
+| `--bump <type>` | Version bump type: `patch`, `minor`, or `major` |
+| `--version <version>` | Explicit version number (e.g. `2.0.0`) |
+| `--yes` | Skip confirmation prompts |
