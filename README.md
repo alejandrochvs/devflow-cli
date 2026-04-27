@@ -44,6 +44,8 @@ Or add scripts to your `package.json`:
 
 ## Commands
 
+> **Tip:** In any multi-step command, press **Escape** to go back to the previous step.
+
 ### `devflow init`
 
 Interactive setup wizard that configures your entire project. Walks you through:
@@ -116,15 +118,18 @@ The `!` after the ticket indicates a breaking change.
 Create or update a pull request with an auto-filled template.
 
 **Flow:**
-1. Checks if a PR already exists for the current branch (offers to update)
+1. Checks if a PR already exists for the current branch:
+   - **Open** — offers to update it
+   - **Merged** — asks whether to create a new PR
+   - **Closed** — asks to reopen and update, or create a new PR
 2. Infers the base branch (closest remote branch by merge-base)
 3. Enter PR title (pre-filled from branch description)
 4. Enter optional summary
 5. Preview PR body with template
-6. Confirm and create/update
+6. Confirm and create/update/reopen
 
 **Features:**
-- Auto-detects existing PRs and offers update flow
+- Auto-detects existing PRs; handles open, merged, and closed states
 - Infers base branch using `git merge-base` comparison
 - Pre-fills commit list in the summary
 - Auto-labels from branch type (feat → `feature`, fix → `bug`, etc.)

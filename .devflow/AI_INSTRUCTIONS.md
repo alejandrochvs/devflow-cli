@@ -4,12 +4,14 @@
 
 | Task | Command |
 |------|---------|
+| Check status | `devflow status` |
+| List project issues | `devflow issues` |
+| Start work on issue | `devflow issues --work` |
 | New branch | `devflow branch` |
 | Commit changes | `devflow commit` or `devflow commit -m "message"` |
 | Create/update PR | `devflow pr` |
 | Create issue | `devflow issue` |
 | Amend last commit | `devflow amend` |
-| Check status | `devflow status` |
 | View PR comments | `devflow comments` |
 
 ## Rules for AI Agents
@@ -56,10 +58,19 @@ devflow commit --type fix --message "fix typo" --files "src/app.ts,src/index.ts"
 devflow commit --type feat --message "add API" --breaking --breaking-desc "Changes API format" --yes
 ```
 
+### Issues Command
+```bash
+devflow issues
+devflow issues --status in-progress
+devflow issues --available
+devflow issues --work --issue 42 --branch-desc "add-auth" --yes
+```
+
 ### PR Command
 ```bash
 devflow pr --title "Add OAuth2 login" --summary "Implements OAuth2 flow" --yes
 devflow pr --title "Feature X" --base develop --ready --yes
+# If a merged or closed PR exists on the branch, --yes auto-creates a new PR
 ```
 
 ### Issue Command

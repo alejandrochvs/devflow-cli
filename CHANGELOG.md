@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Bug Fixes
+
+- **pr** — Gracefully handle merged and closed PRs: merged branch prompts to create a new PR; closed branch offers reopen-and-update or create-new. `--yes` auto-creates in both cases.
+
+### Documentation
+
+- Add `docs/commands/issues.md` (previously missing)
+- Add `issues` to VitePress sidebar
+- Add Escape back-navigation tip to README
+- Sync AI_INSTRUCTIONS.md Quick Reference with CLAUDE.md (add `issues`, `issues --work`)
+- Bump `.devflow/version.json` to 1.7.0
+
 ## [1.7.0] - 2026-02-11
 
 ### Documentation
