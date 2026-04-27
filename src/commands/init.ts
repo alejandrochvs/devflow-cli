@@ -4,6 +4,7 @@ import { confirm, input, select } from "@inquirer/prompts";
 import { execSync, execFileSync } from "child_process";
 import { PRESETS, PresetType } from "../config.js";
 import { writeVersionInfo, getCliVersion } from "../devflow-version.js";
+import { isGhInstalled } from "../git.js";
 import {
   selectWithBack,
   inputWithBack,
@@ -283,6 +284,13 @@ export async function initCommand(): Promise<void> {
         }
 
         case "projectSetup": {
+          if (!isGhInstalled()) {
+            console.log("⚠ GitHub CLI (gh) is not installed — skipping project integration.");
+            console.log("  Install it with: brew install gh\n");
+            currentStep = "scopes";
+            break;
+          }
+
           // Check if we have project scopes
           const hasScopes = hasProjectScopes();
 

@@ -155,6 +155,15 @@ export function getRepoDefaultBranch(): string {
   }
 }
 
+export function isGhInstalled(): boolean {
+  try {
+    execSync("gh --version", { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function checkGhInstalled(): void {
   try {
     execSync("gh --version", { stdio: "ignore" });

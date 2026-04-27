@@ -1,7 +1,7 @@
 import { execSync } from "child_process";
 import { loadConfig } from "../config.js";
 import { bold, dim, cyan, green, yellow, gray } from "../colors.js";
-import { getBranch, parseBranch, getDefaultBase, getCommits } from "../git.js";
+import { getBranch, parseBranch, getDefaultBase, getCommits, isGhInstalled } from "../git.js";
 
 function getPrInfo(): { url: string; number: number; state: string } | undefined {
   try {
@@ -74,6 +74,8 @@ export async function statusCommand(): Promise<void> {
   if (pr) {
     const stateColor = pr.state === "OPEN" ? green : pr.state === "MERGED" ? cyan : gray;
     console.log(`\n${dim("PR:")}      ${stateColor(`#${pr.number} (${pr.state.toLowerCase()})`)} ${dim(pr.url)}`);
+  } else if (!isGhInstalled()) {
+    console.log(`\n${dim("PR:")}      ${gray("gh not installed — install with: brew install gh")}`);
   } else {
     console.log(`\n${dim("PR:")}      ${gray("none")}`);
   }
