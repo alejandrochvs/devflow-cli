@@ -1,5 +1,5 @@
 import { select, input, confirm } from "@inquirer/prompts";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import { loadConfig } from "../config.js";
 import { bold, dim, green, cyan, gray } from "../colors.js";
 import { setTestPlan } from "../test-plan.js";
@@ -307,7 +307,7 @@ export async function branchCommand(options: BranchOptions = {}): Promise<void> 
     // Check if branch already exists
     let branchExists = false;
     try {
-      execSync(`git rev-parse --verify ${branchName}`, { stdio: "pipe" });
+      execFileSync("git", ["rev-parse", "--verify", branchName], { stdio: "pipe" });
       branchExists = true;
     } catch {
       branchExists = false;
@@ -324,7 +324,7 @@ export async function branchCommand(options: BranchOptions = {}): Promise<void> 
       });
 
       if (action === "checkout") {
-        execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+        execFileSync("git", ["checkout", branchName], { stdio: "inherit" });
         console.log(green(`✓ Checked out existing branch: ${branchName}`));
       } else if (action === "new") {
         console.log("Aborted. Please run devflow branch again with a different description.");
@@ -334,7 +334,7 @@ export async function branchCommand(options: BranchOptions = {}): Promise<void> 
         process.exit(0);
       }
     } else {
-      execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+      execFileSync("git", ["checkout", "-b", branchName], { stdio: "inherit" });
       console.log(green(`✓ Branch created: ${branchName}`));
     }
 

@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import { bold, dim, green, cyan } from "../colors.js";
 import { getDefaultBase, getBranch } from "../git.js";
 import {
@@ -176,7 +176,7 @@ export async function fixupCommand(options: FixupOptions = {}): Promise<void> {
           }
 
           // Create fixup commit
-          execSync(`git commit --fixup=${target}`, { stdio: "inherit" });
+          execFileSync("git", ["commit", `--fixup=${target}`], { stdio: "inherit" });
           console.log(green("✓ Fixup commit created."));
 
           // Handle auto-squash from flag or prompt
@@ -195,7 +195,7 @@ export async function fixupCommand(options: FixupOptions = {}): Promise<void> {
           }
 
           if (autoSquash) {
-            execSync(`GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash ${base}`, {
+            execFileSync("git", ["rebase", "-i", "--autosquash", base], {
               stdio: "inherit",
               env: { ...process.env, GIT_SEQUENCE_EDITOR: "true" },
             });

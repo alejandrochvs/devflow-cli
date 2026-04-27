@@ -1,15 +1,17 @@
 import { execSync } from "child_process";
 import { bold, dim, green, red, yellow, gray } from "../colors.js";
 import { deleteTestPlan } from "../test-plan.js";
+import { getRepoDefaultBranch } from "../git.js";
 import { checkboxWithBack, confirmWithBack, BACK_VALUE } from "../prompts.js";
 
 function getMergedBranches(): string[] {
   try {
-    const result = execSync("git branch --merged main", { encoding: "utf-8" }).trim();
+    const defaultBranch = getRepoDefaultBranch();
+    const result = execSync(`git branch --merged ${defaultBranch}`, { encoding: "utf-8" }).trim();
     return result
       .split("\n")
       .map((b) => b.trim())
-      .filter((b) => b && !b.startsWith("*") && b !== "main" && b !== "master");
+      .filter((b) => b && !b.startsWith("*") && b !== defaultBranch);
   } catch {
     return [];
   }

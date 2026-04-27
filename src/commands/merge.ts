@@ -1,7 +1,7 @@
 import { select, confirm } from "@inquirer/prompts";
 import { execSync } from "child_process";
 import { bold, dim, green, cyan } from "../colors.js";
-import { getBranch, checkGhInstalled } from "../git.js";
+import { getBranch, checkGhInstalled, getRepoDefaultBranch } from "../git.js";
 import { deleteTestPlan } from "../test-plan.js";
 import {
   selectWithBack,
@@ -154,13 +154,13 @@ export async function mergeCommand(options: MergeOptions = {}): Promise<void> {
 
     if (deleteBranch) {
       deleteTestPlan(branch);
-      // Switch to main after merge
+      const defaultBranch = getRepoDefaultBranch();
       try {
-        execSync("git checkout main", { stdio: "inherit" });
+        execSync(`git checkout ${defaultBranch}`, { stdio: "inherit" });
         execSync("git pull", { stdio: "inherit" });
-        console.log(green("✓ Switched to main and pulled latest."));
+        console.log(green(`✓ Switched to ${defaultBranch} and pulled latest.`));
       } catch {
-        // May not have main locally
+        // May not have default branch locally
       }
     }
   } catch (error) {

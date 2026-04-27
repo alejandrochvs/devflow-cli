@@ -19,3 +19,7 @@ Branches that are:
 | Option | Description |
 |--------|-------------|
 | `--dry-run` | Preview which branches would be deleted |
+| `--all` | Delete all eligible branches without selection |
+| `--branches <list>` | Comma-separated branch names to delete |
+| `--force` | Force delete unmerged branches |
+| `--yes` | Skip confirmation prompts |

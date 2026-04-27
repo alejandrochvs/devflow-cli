@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import { yellow } from "../colors.js";
 import { ProjectConfig } from "../config.js";
 
@@ -36,13 +36,9 @@ interface RepoInfo {
   isOrg: boolean;
 }
 
-function escapeQuery(query: string): string {
-  return query.replace(/'/g, "'\\''");
-}
-
 function executeGraphQL<T>(query: string): T | undefined {
   try {
-    const result = execSync(`gh api graphql -f query='${escapeQuery(query)}'`, {
+    const result = execFileSync("gh", ["api", "graphql", "-f", `query=${query}`], {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
     }).trim();
@@ -319,10 +315,11 @@ export function addIssueToProject(projectId: string, issueNodeId: string): strin
 
 export function assignIssue(issueNumber: number, assignee: string): boolean {
   try {
-    execSync(`gh issue edit ${issueNumber} --add-assignee "${assignee}"`, {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    execFileSync(
+      "gh",
+      ["issue", "edit", String(issueNumber), "--add-assignee", assignee],
+      { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
+    );
     return true;
   } catch {
     return false;

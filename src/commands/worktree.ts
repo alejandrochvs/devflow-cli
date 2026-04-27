@@ -13,6 +13,7 @@ export interface WorktreeOptions {
   branch?: string;
   path?: string;
   yes?: boolean;
+  dryRun?: boolean;
 }
 
 interface Worktree {
@@ -174,14 +175,18 @@ export async function worktreeCommand(options: WorktreeOptions = {}): Promise<vo
             }
 
             const createFlag = branchExists ? "" : "-b ";
-            try {
-              execSync(`git worktree add ${JSON.stringify(worktreePath.trim())} ${createFlag}${branchName.trim()}`, {
-                stdio: "inherit",
-              });
-              console.log(green(`✓ Created worktree at ${worktreePath.trim()}`));
-              console.log(dim(`  cd ${worktreePath.trim()}`));
-            } catch {
-              console.log(red("✗ Failed to create worktree"));
+            if (options.dryRun) {
+              console.log(dim(`[dry-run] Would create worktree at ${worktreePath.trim()} for ${branchName.trim()}`));
+            } else {
+              try {
+                execSync(`git worktree add ${JSON.stringify(worktreePath.trim())} ${createFlag}${branchName.trim()}`, {
+                  stdio: "inherit",
+                });
+                console.log(green(`✓ Created worktree at ${worktreePath.trim()}`));
+                console.log(dim(`  cd ${worktreePath.trim()}`));
+              } catch {
+                console.log(red("✗ Failed to create worktree"));
+              }
             }
             currentStep = "done";
           } else if (selectedAction === "remove") {
@@ -232,18 +237,22 @@ export async function worktreeCommand(options: WorktreeOptions = {}): Promise<vo
             }
 
             if (confirmed === true) {
-              try {
-                execSync(`git worktree remove ${JSON.stringify(selected)}`, { stdio: "inherit" });
-                console.log(green("✓ Worktree removed"));
-              } catch {
-                const force = options.yes || await confirmWithBack({
-                  message: "Worktree has changes. Force remove?",
-                  default: false,
-                  showBack: false,
-                });
-                if (force === true) {
-                  execSync(`git worktree remove --force ${JSON.stringify(selected)}`, { stdio: "inherit" });
-                  console.log(yellow("✓ Force removed worktree"));
+              if (options.dryRun) {
+                console.log(dim(`[dry-run] Would remove worktree at ${selected}`));
+              } else {
+                try {
+                  execSync(`git worktree remove ${JSON.stringify(selected)}`, { stdio: "inherit" });
+                  console.log(green("✓ Worktree removed"));
+                } catch {
+                  const force = options.yes || await confirmWithBack({
+                    message: "Worktree has changes. Force remove?",
+                    default: false,
+                    showBack: false,
+                  });
+                  if (force === true) {
+                    execSync(`git worktree remove --force ${JSON.stringify(selected)}`, { stdio: "inherit" });
+                    console.log(yellow("✓ Force removed worktree"));
+                  }
                 }
               }
             }

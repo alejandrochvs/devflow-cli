@@ -454,6 +454,7 @@ eval "$(devflow completions --shell bash)"
 | `devflow status` | `devflow s` |
 | `devflow test-plan` | `devflow tp` |
 | `devflow lint-config` | `devflow lint` |
+| `devflow update` | `devflow up` |
 
 ## Global Options
 

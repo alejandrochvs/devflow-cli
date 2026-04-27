@@ -111,7 +111,7 @@ devflow merge --method rebase --yes
 
 ### Stash Command
 ```bash
-devflow stash --action save --message "WIP: feature X" --include-untracked
+devflow stash --action save --message "WIP: feature X" --include-untracked --yes
 devflow stash --action pop --index 0 --yes
 devflow stash --action drop --index 0 --yes
 ```

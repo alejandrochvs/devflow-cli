@@ -73,10 +73,12 @@ export async function amendCommand(options: AmendOptions = {}): Promise<void> {
     if (hasEditFlags || options.yes) {
       editMessage = hasEditFlags;
     } else {
-      editMessage = await confirm({
+      const editResult = await confirmWithBack({
         message: "Edit commit message?",
         default: true,
+        showBack: false,
       });
+      editMessage = editResult === true;
     }
 
     let newMessage = lastMessage;
