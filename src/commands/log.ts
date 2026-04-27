@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import { bold, dim, green, cyan, yellow } from "../colors.js";
 import { getDefaultBase, getBranch } from "../git.js";
 import { selectWithBack, BACK_VALUE } from "../prompts.js";
@@ -100,25 +100,25 @@ export async function logCommand(): Promise<void> {
 
           switch (action) {
             case "cherry-pick":
-              execSync(`git cherry-pick ${selectedHash}`, { stdio: "inherit" });
+              execFileSync("git", ["cherry-pick", selectedHash], { stdio: "inherit" });
               console.log(green(`✓ Cherry-picked ${entry.shortHash}`));
               currentStep = "done";
               break;
 
             case "revert":
-              execSync(`git revert ${selectedHash}`, { stdio: "inherit" });
+              execFileSync("git", ["revert", selectedHash], { stdio: "inherit" });
               console.log(green(`✓ Reverted ${entry.shortHash}`));
               currentStep = "done";
               break;
 
             case "fixup":
-              execSync(`git commit --fixup=${selectedHash}`, { stdio: "inherit" });
+              execFileSync("git", ["commit", `--fixup=${selectedHash}`], { stdio: "inherit" });
               console.log(green(`✓ Created fixup for ${entry.shortHash}`));
               currentStep = "done";
               break;
 
             case "diff": {
-              const diff = execSync(`git show ${selectedHash}`, { encoding: "utf-8" });
+              const diff = execFileSync("git", ["show", selectedHash], { encoding: "utf-8" });
               console.log(diff);
               // Stay on action step to allow choosing another action
               break;

@@ -1,5 +1,5 @@
 import { select, input, confirm, editor } from "@inquirer/prompts";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import { loadConfig, IssueType, IssueField } from "../config.js";
 import { bold, dim, green, cyan, gray } from "../colors.js";
 import { checkGhInstalled } from "../git.js";
@@ -232,35 +232,31 @@ async function collectIssueData(issueType: IssueType): Promise<{ title: string; 
 function ensureLabelsExist(labels: string[]): void {
   for (const label of labels) {
     try {
-      // Check if label exists
-      execSync(`gh label list --search "${label}" --json name`, {
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-
-      // Parse results to see if exact match exists
-      const result = execSync(`gh label list --search "${label}" --json name`, {
-        encoding: "utf-8",
-      });
+      const result = execFileSync(
+        "gh",
+        ["label", "list", "--search", label, "--json", "name"],
+        { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
+      );
       const existingLabels = JSON.parse(result) as { name: string }[];
       const exactMatch = existingLabels.some((l) => l.name.toLowerCase() === label.toLowerCase());
 
       if (!exactMatch) {
-        // Create the label with a default color
         console.log(dim(`Creating label "${label}"...`));
-        execSync(`gh label create "${label}" --color "0e8a16" --force`, {
-          stdio: ["pipe", "pipe", "pipe"],
-        });
+        execFileSync(
+          "gh",
+          ["label", "create", label, "--color", "0e8a16", "--force"],
+          { stdio: ["pipe", "pipe", "pipe"] }
+        );
       }
     } catch {
-      // Label doesn't exist or error checking, try to create it
       try {
         console.log(dim(`Creating label "${label}"...`));
-        execSync(`gh label create "${label}" --color "0e8a16" --force`, {
-          stdio: ["pipe", "pipe", "pipe"],
-        });
+        execFileSync(
+          "gh",
+          ["label", "create", label, "--color", "0e8a16", "--force"],
+          { stdio: ["pipe", "pipe", "pipe"] }
+        );
       } catch {
-        // If we can't create the label, we'll let the issue creation fail with the original error
         console.warn(dim(`Warning: Could not create label "${label}"`));
       }
     }
@@ -581,7 +577,7 @@ export async function issueCommand(options: IssueOptions = {}): Promise<void> {
       }
 
       // Create the branch
-      execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+      execFileSync("git", ["checkout", "-b", branchName], { stdio: "inherit" });
       console.log(green(`✓ Branch created: ${branchName}`));
 
         // Skip test plan prompts if --yes is provided

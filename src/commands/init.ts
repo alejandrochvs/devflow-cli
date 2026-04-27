@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { resolve } from "path";
 import { confirm, input, select } from "@inquirer/prompts";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import { PRESETS, PresetType } from "../config.js";
 import { writeVersionInfo, getCliVersion } from "../devflow-version.js";
 import {
@@ -109,7 +109,7 @@ function getRepoLinkedProjects(repo: GitHubRepo): GitHubProject[] {
         }
       }
     }`;
-    const result = execSync(`gh api graphql -f query='${query}'`, {
+    const result = execFileSync("gh", ["api", "graphql", "-f", `query=${query}`], {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
     }).trim();
@@ -140,23 +140,20 @@ function refreshProjectScopes(): boolean {
 
 function createAndLinkProject(repo: GitHubRepo, title: string): GitHubProject | null {
   try {
-    // Create the project
-    const createResult = execSync(
-      `gh project create --owner ${repo.owner} --title "${title}" --format json`,
-      {
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      }
+    const createResult = execFileSync(
+      "gh",
+      ["project", "create", "--owner", repo.owner, "--title", title, "--format", "json"],
+      { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
     ).trim();
 
     const project = JSON.parse(createResult);
     const projectNumber = project.number;
 
-    // Link it to the repo
-    execSync(`gh project link ${projectNumber} --owner ${repo.owner} --repo ${repo.name}`, {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    execFileSync(
+      "gh",
+      ["project", "link", String(projectNumber), "--owner", repo.owner, "--repo", repo.name],
+      { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
+    );
 
     return { number: projectNumber, title };
   } catch {

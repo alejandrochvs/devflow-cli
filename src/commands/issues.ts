@@ -1,5 +1,5 @@
 import { select, input, confirm } from "@inquirer/prompts";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import { loadConfig, DevflowConfig } from "../config.js";
 import { bold, dim, green, cyan, yellow, gray } from "../colors.js";
 import { checkGhInstalled } from "../git.js";
@@ -403,7 +403,7 @@ async function startWork(options: IssuesOptions, config: DevflowConfig, ctx: Pro
 
   // 3. Create branch
   try {
-    execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+    execFileSync("git", ["checkout", "-b", branchName], { stdio: "inherit" });
     console.log(green(`✓ Branch created: ${branchName}`));
   } catch {
     console.log(yellow(`⚠ Could not create branch`));
