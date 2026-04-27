@@ -10,12 +10,15 @@ jobs:
   # Type checking and unit tests with coverage
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
           cache: npm
 
       - run: npm ci
@@ -27,6 +30,7 @@ jobs:
         run: npm run test:coverage
 
       - name: Upload coverage to Codecov
+        if: matrix.node-version == 20
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage/lcov.info
@@ -37,12 +41,15 @@ jobs:
   # Integration tests with isolated git repos
   integration:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
           cache: npm
 
       - run: npm ci
