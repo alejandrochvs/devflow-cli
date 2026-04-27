@@ -28,6 +28,7 @@ import { updateCommand } from "./commands/update.js";
 import { loadPlugins } from "./plugins.js";
 import { checkForUpdates } from "./update-notifier.js";
 import { checkForDevflowUpdates } from "./devflow-version.js";
+import { runCommand } from "./cli-runner.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8"));
 
@@ -60,7 +61,7 @@ program
   .option("-d, --description <desc>", "Branch description")
   .option("--test-plan <steps>", "Pipe-separated test plan steps")
   .option("--yes", "Skip confirmation prompts")
-  .action((opts) => branchCommand(opts));
+  .action((opts) => runCommand(() => branchCommand(opts)));
 
 program
   .command("commit")
@@ -76,7 +77,7 @@ program
   .option("--all", "Stage all changes")
   .option("--files <files>", "Comma-separated files to stage")
   .option("--yes", "Skip confirmation prompts")
-  .action((opts) => commitCommand(opts));
+  .action((opts) => runCommand(() => commitCommand(opts)));
 
 program
   .command("pr")
@@ -88,7 +89,7 @@ program
   .option("--base <branch>", "Base branch")
   .option("--yes", "Skip confirmation prompts")
   .option("--ready", "Create as ready (not draft)")
-  .action((opts) => prCommand(opts));
+  .action((opts) => runCommand(() => prCommand(opts)));
 
 program
   .command("amend")
@@ -100,7 +101,7 @@ program
   .option("-m, --message <message>", "New commit message")
   .option("--breaking", "Mark as breaking change")
   .option("--yes", "Skip confirmation prompts")
-  .action((opts) => amendCommand(opts));
+  .action((opts) => runCommand(() => amendCommand(opts)));
 
 program
   .command("undo")
@@ -108,7 +109,7 @@ program
   .description("Undo the last commit (keeps changes staged)")
   .option("--dry-run", "Preview without executing git commands")
   .option("--yes", "Skip confirmation prompt")
-  .action((opts) => undoCommand(opts));
+  .action((opts) => runCommand(() => undoCommand(opts)));
 
 program
   .command("fixup")
@@ -120,7 +121,7 @@ program
   .option("--files <files>", "Comma-separated files to stage")
   .option("--auto-squash", "Auto-rebase with --autosquash")
   .option("--yes", "Skip confirmation prompts")
-  .action((opts) => fixupCommand(opts));
+  .action((opts) => runCommand(() => fixupCommand(opts)));
 
 program
   .command("merge")
@@ -129,7 +130,7 @@ program
   .option("--dry-run", "Preview without executing git commands")
   .option("--method <method>", "Merge method: squash, merge, or rebase")
   .option("--yes", "Skip confirmation prompts")
-  .action((opts) => mergeCommand(opts));
+  .action((opts) => runCommand(() => mergeCommand(opts)));
 
 program
   .command("release")
@@ -138,7 +139,7 @@ program
   .option("--bump <type>", "Version bump type: patch, minor, or major")
   .option("--version <version>", "Explicit version number")
   .option("--yes", "Skip confirmation prompts")
-  .action((opts) => releaseCommand(opts));
+  .action((opts) => runCommand(() => releaseCommand(opts)));
 
 program
   .command("review")
@@ -147,7 +148,7 @@ program
   .option("--pr <number>", "PR number to review")
   .option("--action <action>", "Action: checkout, approve, comment, request-changes, view")
   .option("--comment <text>", "Comment text (for comment/request-changes)")
-  .action((opts) => reviewCommand(opts));
+  .action((opts) => runCommand(() => reviewCommand(opts)));
 
 program
   .command("comments")
@@ -156,7 +157,7 @@ program
   .option("--number <number>", "PR number (defaults to current branch PR)")
   .option("--resolved", "Show only resolved comments")
   .option("--unresolved", "Show only unresolved comments")
-  .action((opts) => commentsCommand(opts));
+  .action((opts) => runCommand(() => commentsCommand(opts)));
 
 program
   .command("issue")
@@ -170,7 +171,7 @@ program
   .option("--create-branch", "Auto-create branch after issue creation")
   .option("--branch-desc <desc>", "Branch description (for --create-branch)")
   .option("--yes", "Skip confirmation prompts")
-  .action((opts) => issueCommand(opts));
+  .action((opts) => runCommand(() => issueCommand(opts)));
 
 program
   .command("issues")
@@ -183,7 +184,7 @@ program
   .option("--branch-desc <desc>", "Branch description (with --work)")
   .option("--dry-run", "Preview without making changes")
   .option("--yes", "Skip confirmation prompts")
-  .action((opts) => issuesCommand(opts));
+  .action((opts) => runCommand(() => issuesCommand(opts)));
 
 program
   .command("stash")
@@ -194,7 +195,7 @@ program
   .option("--index <n>", "Stash index (for pop/apply/drop/show)")
   .option("--include-untracked", "Include untracked files (for save)")
   .option("--yes", "Skip confirmation prompts")
-  .action((opts) => stashCommand(opts));
+  .action((opts) => runCommand(() => stashCommand(opts)));
 
 program
   .command("worktree")
@@ -204,13 +205,13 @@ program
   .option("--branch <branch>", "Branch name (for add)")
   .option("--path <path>", "Directory path (for add)")
   .option("--yes", "Skip confirmation prompts")
-  .action((opts) => worktreeCommand(opts));
+  .action((opts) => runCommand(() => worktreeCommand(opts)));
 
 program
   .command("log")
   .alias("l")
   .description("Interactive commit log with cherry-pick, revert, and fixup actions")
-  .action(logCommand);
+  .action(() => runCommand(() => logCommand()));
 
 // --- Info commands ---
 
@@ -218,7 +219,7 @@ program
   .command("status")
   .alias("s")
   .description("Show current branch, ticket, commits, and PR info")
-  .action(statusCommand);
+  .action(() => runCommand(() => statusCommand()));
 
 program
   .command("test-plan")
@@ -228,7 +229,7 @@ program
   .option("--replace <steps>", "Replace all steps with these (pipe-separated)")
   .option("--clear", "Clear all steps")
   .option("--show", "Show current steps (default if no other flags)")
-  .action((opts) => testPlanCommand(opts));
+  .action((opts) => runCommand(() => testPlanCommand(opts)));
 
 program
   .command("changelog")
@@ -236,7 +237,7 @@ program
   .option("--dry-run", "Preview without writing to file")
   .option("--version <version>", "Version number for the changelog")
   .option("--yes", "Skip confirmation prompt")
-  .action((opts) => changelogCommand(opts));
+  .action((opts) => runCommand(() => changelogCommand(opts)));
 
 program
   .command("cleanup")
@@ -246,30 +247,30 @@ program
   .option("--branches <list>", "Comma-separated branch names to delete")
   .option("--force", "Force delete unmerged branches")
   .option("--yes", "Skip confirmation prompts")
-  .action((opts) => cleanupCommand(opts));
+  .action((opts) => runCommand(() => cleanupCommand(opts)));
 
 program
   .command("stats")
   .description("Show commit type distribution, top scopes, and contributor stats")
-  .action(statsCommand);
+  .action(() => runCommand(() => statsCommand()));
 
 program
   .command("lint-config")
   .alias("lint")
   .description("Validate devflow config for errors and warnings (CI-friendly)")
-  .action(lintConfigCommand);
+  .action(() => runCommand(() => lintConfigCommand()));
 
 // --- Setup commands ---
 
 program
   .command("init")
   .description("Initialize devflow config and project setup")
-  .action(initCommand);
+  .action(() => runCommand(() => initCommand()));
 
 program
   .command("doctor")
   .description("Check that all devflow dependencies are properly configured")
-  .action(doctorCommand);
+  .action(() => runCommand(() => doctorCommand()));
 
 program
   .command("update")
@@ -277,7 +278,7 @@ program
   .description("Update AI instructions and other devflow files to latest version")
   .option("--dry-run", "Preview without writing files")
   .option("--yes", "Skip confirmation prompts")
-  .action((opts) => updateCommand(opts));
+  .action((opts) => runCommand(() => updateCommand(opts)));
 
 program
   .command("completions")
