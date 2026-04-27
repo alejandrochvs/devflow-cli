@@ -54,6 +54,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Build
+        run: npm run build
+
       - name: Setup Git for tests
         run: |
           git config --global user.email "test@devflow.test"
