@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { spawn } from "child_process";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
 import { homedir } from "os";
@@ -50,19 +50,6 @@ function getCurrentVersion(): string {
   }
 }
 
-function fetchLatestVersion(): string | undefined {
-  try {
-    const result = execSync(`npm view ${PACKAGE_NAME} version`, {
-      encoding: "utf-8",
-      timeout: 5000,
-      stdio: ["pipe", "pipe", "ignore"],
-    }).trim();
-    return result;
-  } catch {
-    return undefined;
-  }
-}
-
 function isNewer(latest: string, current: string): boolean {
   const l = latest.split(".").map(Number);
   const c = current.split(".").map(Number);
@@ -73,26 +60,51 @@ function isNewer(latest: string, current: string): boolean {
   return false;
 }
 
+function fetchLatestVersionAsync(cachePath: string, existingVersion: string | undefined): void {
+  const child = spawn("npm", ["view", PACKAGE_NAME, "version"], {
+    detached: true,
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+
+  let output = "";
+  child.stdout.on("data", (data: Buffer) => {
+    output += data.toString();
+  });
+
+  child.on("close", (code: number) => {
+    if (code === 0) {
+      const version = output.trim();
+      const newCache: UpdateCache = { lastCheck: Date.now(), latestVersion: version };
+      try {
+        writeFileSync(cachePath, JSON.stringify(newCache));
+      } catch {
+        // Ignore write errors in background process
+      }
+    }
+  });
+
+  child.unref();
+}
+
 export function checkForUpdates(): void {
   const cache = readCache();
   const now = Date.now();
+  const cachePath = getCachePath();
+
+  // Always show a notification if the cached version is newer (instant, no network)
+  if (cache.latestVersion && isNewer(cache.latestVersion, getCurrentVersion())) {
+    showNotification(cache.latestVersion);
+  }
 
   if (now - cache.lastCheck < CHECK_INTERVAL) {
-    // Show cached notification if available
-    if (cache.latestVersion && isNewer(cache.latestVersion, getCurrentVersion())) {
-      showNotification(cache.latestVersion);
-    }
     return;
   }
 
-  // Check in background (non-blocking)
-  const latest = fetchLatestVersion();
-  const newCache: UpdateCache = { lastCheck: now, latestVersion: latest };
-  writeCache(newCache);
+  // Stamp lastCheck immediately so concurrent invocations don't all spawn
+  writeCache({ lastCheck: now, latestVersion: cache.latestVersion });
 
-  if (latest && isNewer(latest, getCurrentVersion())) {
-    showNotification(latest);
-  }
+  // Fetch in the background; result lands in cache for the next invocation
+  fetchLatestVersionAsync(cachePath, cache.latestVersion);
 }
 
 function showNotification(latest: string): void {
