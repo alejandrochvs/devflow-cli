@@ -11,10 +11,10 @@ export default defineConfig({
       // Coverage thresholds - increase as we add more tests
       // Current: ~7% | Next target: 15% | Long-term: 40%
       thresholds: {
-        statements: 6,
-        branches: 6,
-        functions: 8,
-        lines: 6,
+        statements: 8,
+        branches: 8,
+        functions: 10,
+        lines: 8,
       },
     },
   },
