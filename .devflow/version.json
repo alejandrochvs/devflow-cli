@@ -2,6 +2,7 @@
   "cliVersion": "1.7.0",
   "generatedAt": "2026-04-27T00:00:00.000Z",
   "files": {
-    "aiInstructions": "1.7.0"
+    "aiInstructions": "1.7.0",
+    "claudeSkill": "1.7.0"
   }
 }

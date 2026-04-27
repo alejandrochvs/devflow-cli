@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Features
+
+- **init / update** — Generate a Claude Code wrapper skill at `.claude/skills/devflow-usage/SKILL.md` alongside `.devflow/AI_INSTRUCTIONS.md`. The skill surfaces devflow rules in Claude's available-skills list; AI_INSTRUCTIONS.md remains the canonical agent-agnostic reference for Cursor, Copilot, and other tools. Both files stay in sync via `devflow update`.
+
 ### Bug Fixes
 
 - **pr** — Gracefully handle merged and closed PRs: merged branch prompts to create a new PR; closed branch offers reopen-and-update or create-new. `--yes` auto-creates in both cases.

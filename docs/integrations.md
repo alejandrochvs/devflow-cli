@@ -73,7 +73,14 @@ Help AI coding assistants (Claude Code, Cursor, GitHub Copilot, etc.) understand
 
 ### Claude Code
 
-Create a `CLAUDE.md` in your project root:
+Running `devflow init` automatically generates two files that work together:
+
+- **`.devflow/AI_INSTRUCTIONS.md`** — canonical agent-agnostic reference (full command list, non-interactive flags, workflows). Readable by Cursor, Copilot, and any other AI tool.
+- **`.claude/skills/devflow-usage/SKILL.md`** — Claude Code wrapper skill. Surfaces devflow rules in Claude's available-skills list so they're always discoverable. Points to `AI_INSTRUCTIONS.md` for the full reference.
+
+Run `devflow update` at any time to regenerate both files to the latest template.
+
+You can also create a `CLAUDE.md` in your project root for additional project-specific instructions:
 
 ```markdown
 # Claude Code Instructions

@@ -14,6 +14,48 @@ export interface UpdateOptions {
   dryRun?: boolean;
 }
 
+const CLAUDE_SKILL_TEMPLATE = `---
+name: devflow-usage
+description: MANDATORY when working in any devflow-managed repo (one with a .devflow/config.json). Always use devflow commands instead of raw git/gh — \`devflow branch\` over \`git checkout -b\`, \`devflow commit\` over \`git commit\`, \`devflow pr\` over \`gh pr create\`. Never push directly to main; all changes go through PRs. Full command reference and non-interactive flag examples live in .devflow/AI_INSTRUCTIONS.md.
+---
+
+# DevFlow Usage
+
+This repo uses [devflow](https://github.com/alejandrochvs/devflow-cli) for Git workflow automation. Apply these rules whenever making changes.
+
+## Core rules
+
+1. **Never push directly to main.** All changes go through pull requests, even small fixes.
+2. **Use devflow commands, not raw git/gh:**
+   - Branches: \`devflow branch\` (not \`git checkout -b\`)
+   - Commits: \`devflow commit\` (not \`git commit\`)
+   - PRs: \`devflow pr\` (not \`gh pr create\`)
+   - Issues: \`devflow issue\` / \`devflow issues\` (not \`gh issue ...\`)
+3. **Issue-first workflow** (when a project board is configured):
+   - \`devflow issues\` to see Todo / In Progress
+   - \`devflow issues --work --issue <N> --yes\` to start work
+4. **Commit format:** \`{type}[{ticket}]{breaking}({scope}): {message}\` — e.g. \`feat[123](auth): add OAuth2 login\`.
+5. **Branch format:** \`{type}/{ticket}_{description}\` — e.g. \`feat/123_add-login\`.
+6. **Press \`Escape\`** to go back a step in any multi-step prompt.
+7. **Use \`--dry-run\`** to preview any command without executing.
+
+## Non-interactive mode for AI agents
+
+Append \`--yes\` to skip all confirmation prompts. Each command also accepts content flags so prompts can be skipped entirely:
+
+\`\`\`bash
+devflow branch --type feat --ticket 123 --description "add-login" --yes
+devflow commit --type feat --scope auth --message "add login" --all --yes
+devflow pr --title "Add login" --summary "Implements login UI" --yes
+\`\`\`
+
+Full per-command non-interactive examples live in \`.devflow/AI_INSTRUCTIONS.md\`.
+
+## Full reference
+
+For everything beyond the basics above — Quick Reference table, all command flags, common workflows, edge cases like merged/closed PRs — read \`.devflow/AI_INSTRUCTIONS.md\`. Treat that file as canonical.
+`;
+
 const AI_INSTRUCTIONS_TEMPLATE = `# DevFlow - AI Agent Instructions
 
 ## Quick Reference
@@ -264,6 +306,45 @@ export async function updateCommand(options: UpdateOptions = {}): Promise<void> 
       } else {
         writeFileSync(aiInstructionsPath, template);
         updates.push(aiInstructionsExists ? "Updated .devflow/AI_INSTRUCTIONS.md" : "Created .devflow/AI_INSTRUCTIONS.md");
+      }
+    }
+
+    // Update Claude Code wrapper skill
+    const skillDir = resolve(cwd, ".claude/skills/devflow-usage");
+    const skillPath = resolve(skillDir, "SKILL.md");
+    const skillExists = existsSync(skillPath);
+
+    let updateSkill = true;
+    if (skillExists && !options.yes) {
+      const result = await confirmWithBack({
+        message: "Update .claude/skills/devflow-usage/SKILL.md with latest template?",
+        default: true,
+        showBack: false,
+      });
+      updateSkill = result === true;
+    }
+
+    if (updateSkill) {
+      let skillTemplate = CLAUDE_SKILL_TEMPLATE;
+      if (config.commitFormat) {
+        skillTemplate = skillTemplate.replace(
+          "{type}[{ticket}]{breaking}({scope}): {message}",
+          config.commitFormat
+        );
+      }
+      if (config.branchFormat) {
+        skillTemplate = skillTemplate.replace(
+          "{type}/{ticket}_{description}",
+          config.branchFormat
+        );
+      }
+
+      if (options.dryRun) {
+        console.log(dim(`[dry-run] Would ${skillExists ? "update" : "create"} .claude/skills/devflow-usage/SKILL.md`));
+      } else {
+        mkdirSync(skillDir, { recursive: true });
+        writeFileSync(skillPath, skillTemplate);
+        updates.push(skillExists ? "Updated .claude/skills/devflow-usage/SKILL.md" : "Created .claude/skills/devflow-usage/SKILL.md");
       }
     }
 
