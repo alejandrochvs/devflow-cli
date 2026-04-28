@@ -78,6 +78,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Build
+        run: npm run build
+
       - name: Install VHS
         run: |
           # Install ffmpeg (required dependency for VHS)
@@ -93,6 +96,8 @@ jobs:
 
       - name: Validate tape files
         run: npm run demo:validate
+        env:
+          DEVFLOW_BIN: ${{ github.workspace }}/dist/index.js
 
       - name: Check demo coverage
         run: npm run demo:coverage

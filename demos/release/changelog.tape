@@ -1,5 +1,5 @@
 # VHS Tape for devflow changelog
-# Generates changelog from commits
+# Generates changelog from conventional commits
 # Run with: vhs demos/release/changelog.tape
 
 Output demos/release/changelog.gif
@@ -17,14 +17,14 @@ Type "devflow changelog"
 Enter
 Sleep 3s
 
-# Select range
+# Version for this changelog entry (accept default)
 Enter
 Sleep 1.5s
 
 # Preview changelog
 Sleep 3s
 
-# Confirm save
+# Write to CHANGELOG.md? yes (default)
 Enter
 Sleep 3s
 

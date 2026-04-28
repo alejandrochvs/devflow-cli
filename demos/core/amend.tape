@@ -22,17 +22,28 @@ Type "devflow amend"
 Enter
 Sleep 3s
 
-# Select files to stage (if any)
+# Edit commit message? yes (default)
 Enter
 Sleep 1.5s
 
-# Choose to edit message
-Down
+# Select commit type (feat = first)
+Enter
+Sleep 1.5s
+
+# Scope (optional, skip)
 Enter
 Sleep 1.5s
 
 # Edit the message
 Type "fix typo in login validation"
+Enter
+Sleep 1.5s
+
+# Is this a breaking change? no
+Enter
+Sleep 1.5s
+
+# Amend this commit? yes
 Enter
 Sleep 3s
 

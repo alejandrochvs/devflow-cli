@@ -17,18 +17,19 @@ Type "devflow worktree"
 Enter
 Sleep 3s
 
-# Choose to add worktree
+# Action: add (first option)
 Enter
 Sleep 1.5s
 
-# Select branch
-Down
+# Branch name for the new worktree
+Type "feature/dark-mode"
 Enter
 Sleep 1.5s
 
-# Confirm creation
+# Worktree path
+Type "../dark-mode-worktree"
 Enter
 Sleep 3s
 
-# Show result - worktree created
+# Show result — worktree created
 Sleep 4s

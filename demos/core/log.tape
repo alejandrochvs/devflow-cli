@@ -1,5 +1,5 @@
 # VHS Tape for devflow log
-# Interactive commit log with cherry-pick/revert/fixup
+# Interactive commit log browser
 # Run with: vhs demos/core/log.tape
 
 Output demos/core/log.gif
@@ -26,12 +26,18 @@ Sleep 1.5s
 Enter
 Sleep 1.5s
 
-# Choose action (view diff)
+# Navigate to "Show full diff" (index 3: cherry-pick[0] revert[1] fixup[2] diff[3])
+Down
+Down
+Down
 Enter
 Sleep 3s
 
-# Exit
-Escape
+# Back at commit list — navigate to Done
+Down
+Down
+Down
+Enter
 Sleep 2s
 
 # Show result

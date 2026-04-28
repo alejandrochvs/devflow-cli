@@ -22,19 +22,32 @@ Type "devflow stash"
 Enter
 Sleep 3s
 
-# Choose to save
+# Action: save (first option when no existing stashes)
 Enter
 Sleep 1.5s
 
-# Enter stash name
+# Enter stash message
 Type "work-in-progress-auth"
+Enter
+Sleep 1.5s
+
+# Include untracked files? no (default)
 Enter
 Sleep 3s
 
-# Show stash was created
+# Pop the stash to restore work
 Type "devflow stash"
 Enter
 Sleep 3s
 
-# List shows the stash
+# Action: pop (second option — save[0] pop[1])
+Down
+Enter
+Sleep 1.5s
+
+# Select stash: first (and only) stash
+Enter
+Sleep 3s
+
+# Show result
 Sleep 4s

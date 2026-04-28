@@ -20,7 +20,7 @@ Type "devflow branch"
 Enter
 Sleep 3s
 
-# Select ticket option
+# Ticket method: select "Enter manually"
 Down
 Enter
 Sleep 1.5s
@@ -30,12 +30,21 @@ Type "42"
 Enter
 Sleep 1.5s
 
-# Select type (feat)
+# Branch type: feat (first option)
 Enter
 Sleep 1.5s
 
 # Enter description
 Type "dark-mode-toggle"
+Enter
+Sleep 1.5s
+
+# Confirm branch creation
+Enter
+Sleep 1.5s
+
+# Test plan? Skip (Down = Skip)
+Down
 Enter
 Sleep 3s
 
@@ -50,22 +59,28 @@ Type "devflow commit"
 Enter
 Sleep 3s
 
-# Stage files
-Space
+# Stage all files
 Enter
 Sleep 1.5s
 
-# Select type (feat)
-Down
-Enter
-Sleep 1.5s
-
-# Select scope
+# Select type: feat (first)
 Enter
 Sleep 1.5s
 
 # Enter message
 Type "implement dark mode toggle"
+Enter
+Sleep 1.5s
+
+# Is this a breaking change? no
+Enter
+Sleep 1.5s
+
+# Add body? no
+Enter
+Sleep 1.5s
+
+# Create this commit? yes
 Enter
 Sleep 3s
 
@@ -80,7 +95,15 @@ Type "devflow pr"
 Enter
 Sleep 3s
 
-# Confirm title
+# Create a new PR for this branch? yes
+Enter
+Sleep 1.5s
+
+# Base branch (accept default)
+Enter
+Sleep 1.5s
+
+# PR title (accept default)
 Enter
 Sleep 1.5s
 
@@ -89,12 +112,7 @@ Type "Adds dark mode toggle to user settings"
 Enter
 Sleep 1.5s
 
-# Select test plan items
-Space
-Enter
-Sleep 1.5s
-
-# Confirm PR creation
+# Create this PR? yes
 Enter
 Sleep 3s
 
