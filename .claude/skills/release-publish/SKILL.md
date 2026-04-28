@@ -1,15 +1,17 @@
 ---
 name: release-publish
-description: How to tag and publish a new devflow-cli release. Use when the user asks to release, publish, cut a version, or bump the package. Covers the full flow: merge PRs → devflow release → bypass pre-push → create GitHub release.
+description: How to tag and publish a new devflow-cli release. Use when the user asks to release, publish, cut a version, or bump the package. Covers the full flow: merge PRs → devflow release → bypass pre-push → create GitHub release. npm publish is fully automated by the publish.yml GitHub Action — never run it manually.
 ---
 
 # Release & Publish
 
 devflow-cli publishes to npm as `@alejandrochaves/devflow-cli`. Releases live on the `main` branch; there is no separate release branch.
 
+**npm publish is handled automatically** by `.github/workflows/publish.yml`, which triggers on `release: [published]`. Never run `npm publish` manually.
+
 ## Pre-flight
 
-1. All intended PRs must be merged to `main` first — releases capture `main` as-is.
+1. All intended PRs must be merged to `main` first.
 2. Be on `main` and fully up to date:
    ```bash
    git checkout main && git pull
@@ -41,7 +43,7 @@ Both are required: the first pushes the release commit, the second pushes the ta
 
 ## Create the GitHub release
 
-After the tag is on remote, create the GitHub release from the CHANGELOG entry:
+Creating the GitHub release is the final manual step. It also triggers the npm publish automatically.
 
 ```bash
 gh release create vX.Y.Z --title "vX.Y.Z" --notes "$(sed -n '/^## \[X\.Y\.Z\]/,/^## \[/p' CHANGELOG.md | head -n -1)"
@@ -49,19 +51,9 @@ gh release create vX.Y.Z --title "vX.Y.Z" --notes "$(sed -n '/^## \[X\.Y\.Z\]/,/
 
 Replace `X.Y.Z` with the actual version. The sed command extracts that version's section from CHANGELOG.md.
 
-## npm publish
-
-`prepublishOnly` runs `npm run build` automatically. Publish with:
-
-```bash
-npm publish --access public
-```
-
-Requires being logged in to npm as the package owner (`npm whoami`).
+Once published, the `publish.yml` workflow runs automatically: it type-checks, tests, builds, and publishes to npm with provenance. No further action needed.
 
 ## Explicit version override
-
-If you need to set an exact version instead of a bump type:
 
 ```bash
 devflow release --version 2.0.0 --yes
@@ -71,9 +63,9 @@ devflow release --version 2.0.0 --yes
 
 ```bash
 git checkout main && git pull
-devflow release --bump minor --yes      # or patch/major/--version X.Y.Z
+devflow release --bump minor --yes        # or patch/major/--version X.Y.Z
 ALLOW_MAIN_PUSH=1 git push
 ALLOW_MAIN_PUSH=1 git push --tags
 gh release create vX.Y.Z --title "vX.Y.Z" --notes "..."
-npm publish --access public
+# ↑ publishing the GitHub release triggers npm publish automatically
 ```
