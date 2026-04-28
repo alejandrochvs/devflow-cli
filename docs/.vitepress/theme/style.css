@@ -517,9 +517,67 @@
   .vp-hero-title { font-size: 64px; }
   .vp-cmd-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* tablet / stacked hero — pebble card compacts, caption hidden */
+@media (max-width: 959px) {
+  /*
+   * VitePress applies margin:-76px -24px -48px to .VPHero .image on mobile
+   * so the image bleeds over the hero text as a decorative background.
+   * Our PebbleCard is a solid UI card, not a background image — reset the
+   * bleed so it stacks cleanly above the hero text.
+   * Specificity: .VPHero .image (0,2,0) = .image[data-v-xxx] (0,2,0);
+   * our rule wins because it's declared later in the cascade.
+   */
+  .VPHero .image {
+    margin: 0;
+  }
+  .VPHero .image-container {
+    width: auto;
+    height: auto;
+  }
+
+  .vp-pebble-card {
+    min-height: auto;
+    padding: 16px 20px 20px;
+    border-radius: 16px;
+  }
+  .vp-pebble-caption { display: none; }
+  .vp-pebble-stage { padding: 8px 0; }
+  .vp-pebble-stage svg { width: 160px; height: 160px; }
+  /*
+   * Use viewport-relative max-width so the constraint is absolute and
+   * bypasses the min-width:auto cascade through .main → .vp-hero-custom
+   * → flex items. 48px = VPHero's 24px left + 24px right padding.
+   */
+  .vp-hero-custom {
+    max-width: calc(100vw - 48px);
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .vp-hero-tagline,
+  .vp-hero-title {
+    max-width: calc(100vw - 48px);
+  }
+}
+
 @media (max-width: 700px) {
   .vp-hero-title { font-size: 48px; }
   .vp-cmd-grid { grid-template-columns: 1fr; }
   .vp-cta { margin: 0 16px 60px; }
   .vp-section { padding: 60px 20px; }
+  /* CTA row: stack vertically so neither button overflows on narrow screens */
+  .vp-hero-cta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .vp-hero-cta .vp-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  /* truncate install command text to prevent button overflow */
+  .vp-btn-mono .vp-install-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
