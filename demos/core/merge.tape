@@ -17,12 +17,16 @@ Type "devflow merge"
 Enter
 Sleep 3s
 
-# Select merge strategy
+# Select merge strategy (merge = second option)
 Down
 Enter
 Sleep 1.5s
 
-# Confirm merge
+# Delete branch after merge? yes (default)
+Enter
+Sleep 1.5s
+
+# Confirm merge of this PR
 Enter
 Sleep 3s
 

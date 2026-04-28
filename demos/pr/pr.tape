@@ -17,23 +17,24 @@ Type "devflow pr"
 Enter
 Sleep 3s
 
-# Edit PR title
+# Create a new PR for this branch? yes (default)
 Enter
 Sleep 1.5s
 
-# Enter summary
+# Base branch (accept default)
+Enter
+Sleep 1.5s
+
+# PR title (accept default from branch name / commits)
+Enter
+Sleep 1.5s
+
+# PR summary
 Type "Implements user authentication with OAuth2"
 Enter
 Sleep 1.5s
 
-# Add test plan items
-Space
-Down
-Space
-Enter
-Sleep 1.5s
-
-# Confirm creation
+# Create this PR? yes
 Enter
 Sleep 3s
 

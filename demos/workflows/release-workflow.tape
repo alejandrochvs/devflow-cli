@@ -20,31 +20,35 @@ Type "devflow changelog"
 Enter
 Sleep 3s
 
-# Confirm range
+# Version (accept default)
 Enter
 Sleep 1.5s
 
-# Save changelog
+# Write to CHANGELOG.md? yes
 Enter
 Sleep 3s
 
-# Step 2: Create release
+# Step 2: Create release (dry-run)
 Type "clear"
 Enter
 Sleep 1s
 Type "# Step 2: Create release"
 Enter
 Sleep 1s
-Type "devflow release"
+Type "devflow release --dry-run"
 Enter
 Sleep 3s
 
-# Select version bump (minor)
+# Select version bump: minor
 Down
 Enter
 Sleep 1.5s
 
-# Confirm release
+# Release this version? yes
+Enter
+Sleep 1.5s
+
+# Create GitHub release? yes
 Enter
 Sleep 3s
 
@@ -66,7 +70,7 @@ Space
 Enter
 Sleep 1.5s
 
-# Confirm
+# Confirm force delete
 Enter
 Sleep 3s
 

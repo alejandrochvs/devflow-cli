@@ -23,7 +23,11 @@ Sleep 3s
 # Select a PR
 Down
 Enter
-Sleep 2s
+Sleep 1.5s
+
+# Action: checkout this branch (first option — no text input)
+Enter
+Sleep 3s
 
 # Step 2: View comments
 Type "clear"
@@ -36,7 +40,7 @@ Type "devflow comments"
 Enter
 Sleep 3s
 
-# Scroll through comments
+# Scroll through comments (non-interactive output)
 Down
 Down
 Sleep 2s
@@ -52,11 +56,15 @@ Type "devflow merge"
 Enter
 Sleep 3s
 
-# Select merge strategy
+# Select merge strategy: squash (first option — accept default)
 Enter
 Sleep 1.5s
 
-# Confirm merge
+# Delete branch after merge? yes (default)
+Enter
+Sleep 1.5s
+
+# Confirm merge of this PR
 Enter
 Sleep 3s
 

@@ -12,8 +12,8 @@ Set TypingSpeed 75ms
 
 Sleep 1.5s
 
-# Show the command for bash
-Type "devflow completions bash"
+# Show the command for bash (correct flag syntax)
+Type "devflow completions --shell bash"
 Enter
 Sleep 3s
 

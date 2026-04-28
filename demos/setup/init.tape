@@ -17,24 +17,52 @@ Type "devflow init"
 Enter
 Sleep 3s
 
-# Select preset
+# Select preset: Down = kanban (second option)
 Down
 Enter
 Sleep 1.5s
 
-# Configure ticket provider
+# Ticket base URL (leave blank to skip)
 Enter
 Sleep 1.5s
 
-# Configure branch format
+# Use GitHub Issues? no (default)
 Enter
 Sleep 1.5s
 
-# Confirm creation
+# Commit scopes: first option (None)
+Enter
+Sleep 1.5s
+
+# PR checklist: first option (Use defaults)
+Enter
+Sleep 1.5s
+
+# Customize branch/commit formats? no (default)
 Enter
 Sleep 3s
 
-# Show result - config file created
+# Set up commitlint? yes (default)
+Enter
+Sleep 1.5s
+
+# Set up husky? yes (default)
+Enter
+Sleep 1.5s
+
+# Add pre-push hook? yes (default)
+Enter
+Sleep 1.5s
+
+# Generate GitHub Actions CI workflow? yes (default)
+Enter
+Sleep 1.5s
+
+# Install AI agent instructions? yes (default)
+Enter
+Sleep 3s
+
+# Show result — config file created
 Type "cat .devflow/config.json"
 Enter
 Sleep 4s

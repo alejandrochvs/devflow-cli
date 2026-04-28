@@ -17,15 +17,15 @@ Type "devflow review"
 Enter
 Sleep 3s
 
-# Navigate through PRs
+# Navigate to second PR
 Down
 Sleep 1.5s
 
-# Select a PR
+# Select PR
 Enter
 Sleep 1.5s
 
-# Choose action
+# Action: checkout this branch locally (first option — no text input required)
 Enter
 Sleep 3s
 

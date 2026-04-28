@@ -1,5 +1,5 @@
 # VHS Tape for devflow issue
-# Creates a GitHub issue with templates
+# Creates a GitHub issue with type-specific templates
 # Run with: vhs demos/issues/issue.tape
 
 Output demos/issues/issue.gif
@@ -17,27 +17,48 @@ Type "devflow issue"
 Enter
 Sleep 3s
 
-# Select issue type (feature)
+# Select issue type: task (index 2 in SCRUM: user-story[0] bug[1] task[2])
+Down
 Down
 Enter
 Sleep 1.5s
 
-# Enter title
-Type "Add dark mode toggle to settings"
+# What needs to be done?
+Type "Add dark mode toggle to settings page"
 Enter
 Sleep 1.5s
 
-# Enter description
-Type "Users should be able to switch between light and dark themes"
+# Why is this needed? (optional — blank to skip)
 Enter
 Sleep 1.5s
 
-# Add acceptance criteria
+# Done criteria list — Enter picks "Continue to add items" in selectWithBack
+Enter
+Sleep 1s
 Type "Toggle persists across sessions"
 Enter
+Sleep 1s
+# Blank line finishes the list
+Enter
 Sleep 1.5s
 
-# Create branch option
+# Create this issue? yes (first select option)
+Enter
+Sleep 3s
+
+# Create a branch? yes (default = true in confirmWithBack)
+Enter
+Sleep 1.5s
+
+# Branch description (accept default from issue title)
+Enter
+Sleep 1.5s
+
+# Create this branch? yes (first select option)
+Enter
+Sleep 1.5s
+
+# Use done criteria as test plan? yes (first option)
 Enter
 Sleep 3s
 

@@ -1,5 +1,5 @@
 # VHS Tape for devflow branch
-# Creates a new git branch with type/ticket/description format
+# Creates branches with ticket tracking and test plans
 # Run with: vhs demos/core/branch.tape
 
 Output demos/core/branch.gif
@@ -17,7 +17,7 @@ Type "devflow branch"
 Enter
 Sleep 3s
 
-# Select "Enter ticket number"
+# Ticket method: select "Enter manually"
 Down
 Enter
 Sleep 1.5s
@@ -27,12 +27,21 @@ Type "123"
 Enter
 Sleep 1.5s
 
-# Select type (feat)
+# Accept default type (feat)
 Enter
 Sleep 1.5s
 
 # Enter description
 Type "add user authentication"
+Enter
+Sleep 1.5s
+
+# Confirm branch creation
+Enter
+Sleep 1.5s
+
+# Test plan? Skip
+Down
 Enter
 Sleep 3s
 

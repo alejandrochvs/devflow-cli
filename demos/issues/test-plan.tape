@@ -17,19 +17,24 @@ Type "devflow test-plan"
 Enter
 Sleep 3s
 
-# View current test plan
-Sleep 1.5s
-
-# Add a test item
-Down
+# If no plan exists: "Add test plan steps?" → yes (default)
+# If plan exists: action select → "Add more steps" (first option)
 Enter
 Sleep 1.5s
 
+# Type a step
 Type "Verify error handling for invalid input"
 Enter
+Sleep 1s
+
+# Blank line to finish adding steps
+Enter
 Sleep 1.5s
 
-# Save changes
+# If plan existed: navigate to Done in action menu (edit[1] clear[2] done[3])
+Down
+Down
+Down
 Enter
 Sleep 3s
 

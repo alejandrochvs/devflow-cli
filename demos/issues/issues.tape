@@ -26,9 +26,17 @@ Sleep 1.5s
 Enter
 Sleep 1.5s
 
-# Confirm start work
+# Branch description (accept default from issue title)
+Enter
+Sleep 1.5s
+
+# Branch type (accept inferred type)
+Enter
+Sleep 1.5s
+
+# Proceed? yes (first select option)
 Enter
 Sleep 3s
 
-# Show result - branch created
+# Show result — branch created
 Sleep 4s

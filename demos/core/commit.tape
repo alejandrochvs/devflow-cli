@@ -17,22 +17,29 @@ Type "devflow commit"
 Enter
 Sleep 3s
 
-# Stage files (space to select, enter to continue)
-Space
+# Stage files: Enter picks "Stage all files"
 Enter
 Sleep 1.5s
 
-# Select type (feat)
+# Select type (fix = second option)
 Down
-Enter
-Sleep 1.5s
-
-# Select scope
 Enter
 Sleep 1.5s
 
 # Enter commit message
 Type "implement OAuth2 login flow"
+Enter
+Sleep 1.5s
+
+# Is this a breaking change? no
+Enter
+Sleep 1.5s
+
+# Add body? no
+Enter
+Sleep 1.5s
+
+# Create this commit? yes
 Enter
 Sleep 3s
 

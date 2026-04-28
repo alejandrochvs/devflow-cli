@@ -1,5 +1,5 @@
 # VHS Tape for devflow update
-# Updates AI instructions and configuration
+# Updates AI instructions and Claude Code skill template
 # Run with: vhs demos/setup/update.tape
 
 Output demos/setup/update.gif
@@ -17,10 +17,15 @@ Type "devflow update"
 Enter
 Sleep 3s
 
-# Show update check
-Sleep 2s
+# Update AI_INSTRUCTIONS.md? yes (default)
+Enter
+Sleep 1.5s
 
-# Confirm update
+# Update devflow-usage SKILL.md? yes (default)
+Enter
+Sleep 1.5s
+
+# Add non-interactive section to CLAUDE.md? yes (default)
 Enter
 Sleep 3s
 
