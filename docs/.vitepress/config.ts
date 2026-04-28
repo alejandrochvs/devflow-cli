@@ -5,10 +5,22 @@ export default defineConfig({
   description: 'Interactive CLI for branch creation, conventional commits, and PR management',
 
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:title', content: 'devflow — stay in the flow.' }],
+    ['meta', { property: 'og:description', content: 'A guided CLI for branches, conventional commits, and PRs. devflow runs the workflow your team already agreed on.' }],
+    ['meta', { property: 'og:url', content: 'https://devflow.alejandrochaves.dev' }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:title', content: 'devflow — stay in the flow.' }],
+    ['meta', { name: 'twitter:description', content: 'A guided CLI for branches, conventional commits, and PRs.' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600;1,700;1,800&family=JetBrains+Mono:wght@400;500;600&display=swap' }],
   ],
 
   themeConfig: {
+    logo: { light: '/logo-mark.svg', dark: '/logo-mark.svg' },
+
     nav: [
       { text: 'Getting Started', link: '/getting-started' },
       { text: 'Commands', link: '/commands/branch' },
