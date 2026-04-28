@@ -338,6 +338,7 @@
   font-weight: 800;
   font-style: italic;
   font-size: 42px;
+  line-height: 1.15;
   letter-spacing: -0.04em;
   margin: 16px 0 14px;
   color: var(--vp-c-text-1);

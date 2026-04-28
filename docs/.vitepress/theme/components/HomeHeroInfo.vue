@@ -64,6 +64,9 @@ function copy() {
     width: 100%;
     box-sizing: border-box;
   }
+  .vp-hero-eyebrow {
+    margin-top: 32px;
+  }
   .vp-hero-cta {
     display: flex;
     flex-direction: column;
