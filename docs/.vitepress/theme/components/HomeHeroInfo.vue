@@ -23,14 +23,14 @@ function copy() {
       the <span class="vp-hero-accent">flow.</span>
     </h1>
     <p class="vp-hero-tagline">
-      A guided CLI for branches, conventional commits, and PRs.<br />
+      A guided CLI for branches, conventional commits, and PRs.
       devflow runs the workflow your team already agreed on — so you can keep building.
     </p>
     <div class="vp-hero-cta">
       <a class="vp-btn vp-btn-primary" href="/getting-started">Get started →</a>
       <button class="vp-btn vp-btn-ghost vp-btn-mono" @click="copy" :title="copied ? 'Copied!' : 'Copy install command'">
         <span class="vp-btn-prompt">$</span>
-        <span>{{ installCmd }}</span>
+        <span class="vp-install-text">{{ installCmd }}</span>
         <span class="vp-btn-copy">{{ copied ? '✓' : '⧉' }}</span>
       </button>
     </div>
@@ -50,3 +50,34 @@ function copy() {
     </div>
   </div>
 </template>
+
+<style scoped>
+/*
+ * On mobile, VitePress's .main flex item has min-width:auto which prevents
+ * shrinking below content width. Switching to block layout here makes every
+ * child a normal block element that fills 100% parent width without flex
+ * minimum-size semantics — the most reliable cross-browser fix.
+ */
+@media (max-width: 959px) {
+  .vp-hero-custom {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .vp-hero-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    margin-top: 24px;
+  }
+  .vp-btn {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+  .vp-hero-badges {
+    justify-content: center;
+  }
+}
+</style>
