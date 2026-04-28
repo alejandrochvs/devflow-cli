@@ -1,6 +1,6 @@
 ---
 name: devflow-docs-sync
-description: MANDATORY when editing any file under src/ in the devflow repo (especially src/commands/, src/config.ts, src/index.ts, src/providers/, src/plugins.ts, src/monorepo.ts). Identifies which documentation surfaces need updating based on the project's source-to-docs map, proposes the edits in the same change, and bumps .devflow/version.json when .devflow/AI_INSTRUCTIONS.md is touched. Invoke BEFORE finalizing any code edit so docs ship with the change, not after.
+description: MANDATORY when editing any file under src/ in the devflow repo (especially src/commands/, src/config.ts, src/index.ts, src/providers/, src/plugins.ts, src/monorepo.ts). Identifies which documentation surfaces need updating based on the project's source-to-docs map, proposes the edits in the same change, and bumps .devflow/version.json when .devflow/AI_INSTRUCTIONS.md is touched. Also updates VHS demo tapes when interactive prompt flows change, and re-records the webpage GIFs if affected. Invoke BEFORE finalizing any code edit so docs ship with the change, not after.
 ---
 
 # DevFlow Documentation Sync
@@ -43,13 +43,61 @@ There are four primary surfaces that must stay in sync, plus secondary ones:
 - `CHANGELOG.md` — `[Unreleased]` section, grouped by `### Features` / `### Bug Fixes` / `### Documentation`
 - `.github/pull_request_template.md` — checklist (fyi only, not edited by this skill)
 
+### Tertiary (check when prompt flow changes)
+- **`demos/**/*.tape`** — VHS terminal recordings; one tape per command. Must be updated any time a command's interactive prompt sequence, number of prompts, or default selections change. See **Tape-to-command map** below.
+
+---
+
+## Tape-to-command map
+
+| Tape | Command source | Notes |
+|---|---|---|
+| `demos/core/branch.tape` | `src/commands/branch.ts` | |
+| `demos/core/commit.tape` | `src/commands/commit.ts` | |
+| `demos/core/amend.tape` | `src/commands/amend.ts` | |
+| `demos/core/fixup.tape` | `src/commands/fixup.ts` | |
+| `demos/core/merge.tape` | `src/commands/merge.ts` | |
+| `demos/core/log.tape` | `src/commands/log.ts` | non-mutating; no confirm prompts |
+| `demos/core/undo.tape` | `src/commands/undo.ts` | |
+| `demos/setup/init.tape` | `src/commands/init.ts` | 11-step wizard; most fragile tape |
+| `demos/setup/completions.tape` | `src/index.ts` (completions subcommand) | flag: `--shell bash` |
+| `demos/setup/update.tape` | `src/commands/update.ts` | |
+| `demos/setup/status.tape` | `src/commands/status.ts` | non-interactive; safe for CI |
+| `demos/setup/doctor.tape` | `src/commands/doctor.ts` | non-interactive; safe for CI |
+| `demos/setup/lint-config.tape` | `src/commands/lint-config.ts` | non-interactive; safe for CI |
+| `demos/pr/pr.tape` | `src/commands/pr.ts` | |
+| `demos/pr/review.tape` | `src/commands/review.ts` | |
+| `demos/pr/comments.tape` | `src/commands/comments.ts` | |
+| `demos/issues/issue.tape` | `src/commands/issue.ts` | long wizard with list-building step |
+| `demos/issues/issues.tape` | `src/commands/issues.ts` | |
+| `demos/issues/test-plan.tape` | `src/commands/test-plan.ts` | |
+| `demos/stash/stash.tape` | `src/commands/stash.ts` | |
+| `demos/stash/worktree.tape` | `src/commands/worktree.ts` | file is in `stash/` dir |
+| `demos/release/changelog.tape` | `src/commands/changelog.ts` | |
+| `demos/release/release.tape` | `src/commands/release.ts` | always use `--dry-run` in the tape |
+| `demos/release/cleanup.tape` | `src/commands/cleanup.ts` | |
+| `demos/release/stats.tape` | `src/commands/stats.ts` | non-interactive; safe for CI |
+| `demos/workflows/full-feature.tape` | chains branch + commit + pr | update after any of those three change |
+| `demos/workflows/bugfix.tape` | chains branch + commit + pr | same |
+| `demos/workflows/review-workflow.tape` | chains review + comments + merge | update after any of those three change |
+| `demos/workflows/release-workflow.tape` | chains changelog + release + cleanup | update after any of those three change |
+
+**Key invariants to preserve when editing tapes:**
+- Every mutating command ends with a `selectWithBack("Confirm action?")` — always needs a trailing `Enter`.
+- `confirmWithBack` prompts default `true`; pressing `Enter` accepts. `selectWithBack` first option is index 0; pressing `Enter` selects it.
+- `demos/release/release.tape` must use `devflow release --dry-run` — never cut a real release from a tape.
+- Non-interactive tapes (`status`, `doctor`, `lint-config`, `completions`, `stats`) are executed in CI by `scripts/validate-tapes.sh`. Keep them passing.
+
+**Verifying tapes:** Run `npm run demo:validate` — Phase 1 syntax-checks all 29 tapes; Phase 2 executes the 5 non-interactive ones against the built CLI. Full GIF re-recording happens via the release GIF workflow (`generate-demo-gifs.yml`) on tag push.
+
 ---
 
 ## Source-to-docs map
 
 | If you changed… | Update these surfaces |
 |---|---|
-| `src/commands/<X>.ts` (behavior/flags) | `docs/commands/<X>.md` (flow + options table), README `### devflow <X>` section, AI_INSTRUCTIONS.md per-command block |
+| `src/commands/<X>.ts` (behavior/flags, no prompt change) | `docs/commands/<X>.md` (flow + options table), README `### devflow <X>` section, AI_INSTRUCTIONS.md per-command block |
+| `src/commands/<X>.ts` (prompt flow — new/removed/reordered prompts) | All of the above **plus** the corresponding tape in **Tape-to-command map** and any workflow tapes that chain this command |
 | `src/commands/<X>.ts` (new command, no prior docs) | See **"New command" scenario** below |
 | `src/config.ts` (schema, new field) | `docs/configuration.md` Config Options table, README "Config Options" L518–534, `docs/commands/lint-config.md` checks list |
 | `src/index.ts` (new alias or command registration) | README aliases table L430–451, `docs/getting-started.md` aliases table L104–125, CLAUDE.md Quick Reference (core commands only), sidebar `docs/.vitepress/config.ts` |
@@ -92,6 +140,7 @@ When a new `src/commands/<X>.ts` file is created or a new command is wired in `s
 7. **Add row** to AI_INSTRUCTIONS.md Quick Reference table (L4–13).
 8. **Add row** to CLAUDE.md Quick Reference table if it's a core workflow command.
 9. **Add entry** to `CHANGELOG.md` `[Unreleased]` `### Features` section.
+10. **Create `demos/<group>/<X>.tape`** — place it in the appropriate group folder (`core/`, `setup/`, `pr/`, `issues/`, `release/`). Add a row to the **Tape-to-command map** in this skill. Run `npm run demo:coverage` to confirm 100% coverage is maintained.
 
 ---
 
@@ -103,6 +152,21 @@ For any flag change, new prompt, removed option, or changed default:
 2. Read README.md `### devflow <X>` subsection and verify options and examples.
 3. Read AI_INSTRUCTIONS.md per-command block and verify the non-interactive flag examples still work.
 4. If the change is user-visible, add an entry to `CHANGELOG.md` `[Unreleased]` under `### Features` or `### Bug Fixes`.
+5. If the prompt flow changed (new/removed/reordered prompts, new confirm step), see **Scenario: prompt flow changed** below.
+
+---
+
+## Scenario: prompt flow changed
+
+When a command gains, loses, or reorders interactive prompts:
+
+1. **Identify the tape** using the Tape-to-command map above.
+2. **Read the tape** (`demos/<dir>/<X>.tape`) and map each keypress block to the current prompt sequence in `src/commands/<X>.ts`.
+3. **Update the tape** — add/remove/reorder `Enter`, `Down`, `Type`, `Space` lines to match the new flow. Keep `Sleep` values reasonable (1.5s between prompts, 3s after a command runs).
+4. **Check workflow tapes** — if the command is chained in any `demos/workflows/*.tape`, update those too.
+5. **Verify** with `npm run demo:validate` (Phase 1 syntax + Phase 2 execution for non-interactive tapes). Interactive tapes are syntax-checked only; visually verify by running `vhs demos/<dir>/<X>.tape` locally if the flow is complex.
+
+**Common pitfall:** Every mutating command ends with a trailing `selectWithBack("Confirm action?")`. If you add a new confirm step inside the flow, count whether it's `confirmWithBack` (Enter = yes) or `selectWithBack` (Enter = first option). Adding a step in the middle shifts all subsequent keypresses.
 
 ---
 
@@ -144,11 +208,12 @@ These doc gaps exist in the repo right now. Flag them when relevant to the curre
 |---|---|
 | `src/commands/issues.ts` exists; `docs/commands/issues.md` is missing | Create the file; add to sidebar |
 | `docs/.vitepress/config.ts` sidebar has no entry for `issues` | Add it |
-| `.devflow/version.json` `cliVersion: 1.6.1`; `package.json: 1.7.0` | Bump after any AI_INSTRUCTIONS.md touch |
 | "Press Escape to go back" is in AI_INSTRUCTIONS.md and getting-started.md but not README | Add one-liner to README `## Commands` intro |
 | CLAUDE.md Quick Reference has 9 rows; AI_INSTRUCTIONS.md has 7 rows | Reconcile — CLAUDE.md is the authoritative core-command list |
 
 Only fix these proactively if the current edit touches the same file or area. Otherwise, just call them out.
+
+**Webpage (docs site):** The docs site at `docs/` is deployed to Vercel on every push to `main`. After any doc edit, confirm the Vercel preview URL renders correctly. The `docs/commands/` pages are the primary user-facing reference; keep them current with every prompt-flow change.
 
 ---
 
